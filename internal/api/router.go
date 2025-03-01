@@ -7,6 +7,7 @@ import (
 
 	"github.com/bob17/adpis/internal/logger"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 type APIServer struct {
@@ -17,7 +18,7 @@ type APIServer struct {
 
 func NewAPIServer(log logger.Logger) *APIServer {
 	return &APIServer{
-		Port:   6969,
+		Port:   4444,
 		logger: log,
 	}
 }
@@ -30,7 +31,15 @@ func (a *APIServer) Start() error {
 	router.HandleFunc("/api/v1/scan/service", a.HandleServiceDetection).Methods(http.MethodPost)
 	router.Use(a.Logger)
 
-	a.httpServer = &http.Server{Addr: addr, Handler: router}
+	corsOptions := cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Content-Type", "Content-Length", "Application-Encoding"},
+	}
+	c := cors.New(corsOptions)
+
+	handler := c.Handler(router)
+	a.httpServer = &http.Server{Addr: addr, Handler: handler}
 	return a.httpServer.ListenAndServe()
 }
 

@@ -18,7 +18,6 @@ type ServiceResult struct {
 	Status  string
 	Service string
 	Version string
-	Error   error
 }
 
 type ServiceDetector interface {
@@ -67,7 +66,6 @@ func (n *NMAPServiceDetector) worker(scanResp <-chan scanner.ScanResult, service
 			serviceResp <- ServiceResult{
 				Port:   resp.Port,
 				Status: resp.Status,
-				Error:  resp.Error,
 				Addr:   resp.Addr,
 			}
 		}
@@ -84,7 +82,6 @@ func (n *NMAPServiceDetector) detectService(port int, addr string) ServiceResult
 			Status:  "open",
 			Service: "unknown",
 			Version: "unknown",
-			Error:   err,
 		}
 	}
 
@@ -99,7 +96,6 @@ func (n *NMAPServiceDetector) detectService(port int, addr string) ServiceResult
 			Status:  "open",
 			Service: "unknown",
 			Version: "unknown",
-			Error:   err,
 		}
 	}
 
@@ -109,6 +105,5 @@ func (n *NMAPServiceDetector) detectService(port int, addr string) ServiceResult
 		Status:  "open",
 		Service: service,
 		Version: version,
-		Error:   nil,
 	}
 }

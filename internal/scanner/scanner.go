@@ -14,7 +14,6 @@ type ScanResult struct {
 	Addr   string
 	Port   int
 	Status string
-	Error  error
 }
 
 type Scanner interface {
@@ -77,11 +76,11 @@ func (ps *PortScanner) worker(addr string, jobs <-chan int, resp chan<- ScanResu
 
 func (ps *PortScanner) scanPort(addr string, port int) ScanResult {
 	if ps.IsRoot {
-		ps.Logger.Info(fmt.Sprintf("SYNC scan......"))
+		ps.Logger.Info("SYNC scan......")
 		isOpen, err := synScan(addr, port)
 		if err != nil {
 			ps.Logger.Warn(fmt.Sprintf("SYN scan failed: %s:%d >> Error: %v ", addr, port, err))
-			return ScanResult{Port: port, Status: "closed", Error: err, Addr: addr}
+			return ScanResult{Port: port, Status: "closed", Addr: addr}
 		}
 
 		if isOpen {
@@ -93,12 +92,12 @@ func (ps *PortScanner) scanPort(addr string, port int) ScanResult {
 		return ScanResult{Port: port, Status: "closed"}
 	}
 
-	ps.Logger.Debug(fmt.Sprintf("TCP-CONNECT scan running..."))
+	ps.Logger.Debug("TCP-CONNECT scan running...")
 	fullAddr := fmt.Sprintf("%s:%d", addr, port)
 	conn, err := net.DialTimeout("tcp", fullAddr, ps.Timeout)
 	if err != nil {
 		ps.Logger.Debug(fmt.Sprintf("Port %d is closed >> %v", port, err))
-		return ScanResult{Port: port, Status: "closed", Error: err, Addr: addr}
+		return ScanResult{Port: port, Status: "closed", Addr: addr}
 	}
 	defer conn.Close()
 	ps.Logger.Info(fmt.Sprintf("Port %d is open", port))
