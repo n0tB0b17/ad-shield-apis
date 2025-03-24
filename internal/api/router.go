@@ -29,6 +29,7 @@ func (a *APIServer) Start() error {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scan/port", a.HandlePortScan).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/scan/service", a.HandleServiceDetection).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/scan/pcap", a.handlePCAPFile).Methods(http.MethodPost)
 	router.Use(a.Logger)
 
 	corsOptions := cors.Options{
