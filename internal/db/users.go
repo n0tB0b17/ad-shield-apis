@@ -18,6 +18,7 @@ type Users struct {
 	Email         string        `bson:"email" json:"email"`
 	Password      string        `bson:"password" json:"password"`
 	ContactNumber uint64        `bson:"contact_number" json:"contact_number"`
+	RoleID        bson.ObjectID `bson:"role_id" json:"role_id"`
 	CreatedAt     time.Time     `bson:"created_at,omit" json:"created_at"`
 	UpdatedAt     time.Time     `bson:"updated_at,omit" json:"updated_at"`
 }
@@ -39,6 +40,7 @@ func NewUserStore(client *mongo.Client, dbName string) *UserStore {
 	_, err := col.Indexes().CreateOne(ctx, usernameModel)
 	if err != nil {
 		fmt.Printf("error while creating user model: %v \n", err)
+		return nil
 	}
 
 	return &UserStore{

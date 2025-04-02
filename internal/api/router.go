@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,6 +24,7 @@ type APIServer struct {
 	dbName      string
 	mongoClient *mongo.Client
 	userStore   *db.UserStore
+	roleStore   *db.RoleStore
 }
 
 func NewAPIServer(log logger.Logger) *APIServer {
@@ -41,13 +43,21 @@ func (a *APIServer) Start() error {
 	}
 
 	router := mux.NewRouter()
+
+	// ------------------USERS--------------------------
+	router.HandleFunc("/api/v1/user/register", a.handleUserRegistration).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/users/all", a.handleGetAllRegisteredUsers).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/user/login", a.handleUserLogin).Methods(http.MethodPost)
+
+	// ------------------ROLES--------------------------
+	router.HandleFunc("/api/v1/roles/add", a.handleAddRoles).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/roles", a.handleGetAllRoles).Methods(http.MethodGet)
+
+	// --------------------------ANALYSIS---------------------
 	router.HandleFunc("/api/v1/scan/port", a.HandlePortScan).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/scan/service", a.HandleServiceDetection).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/scan/pcap", a.handlePCAPFile).Methods(http.MethodPost)
-	router.HandleFunc("/api/v1/user/register", a.handleUserRegistration).Methods(http.MethodPost)
-	router.HandleFunc("/api/v1/user/login", a.handleGetAllRegisteredUsers).Methods(http.MethodPost)
 
-	router.HandleFunc("/api/v1/user/all", nil).Methods(http.MethodGet)
 	router.Use(a.Logger)
 
 	corsOptions := cors.Options{
@@ -64,7 +74,10 @@ func (a *APIServer) Start() error {
 
 func (a *APIServer) Logger(nxt http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Go request for IP: %s, URL: [%s]> %s", r.RemoteAddr, r.Method, r.URL.Path)
+		// write to file
+		a.logger.Debug(fmt.Sprintf("Go request for IP: %s, URL: [%s]> %s", r.RemoteAddr, r.Method, r.URL.Path))
+		// print to stdout
+		log.Printf("Got request for IP: %s, URL: [%s]> %s", r.RemoteAddr, r.Method, r.URL.Path)
 		nxt.ServeHTTP(w, r)
 	})
 }
@@ -87,5 +100,16 @@ func (a *APIServer) ConnectToDB() error {
 
 	a.mongoClient = client
 	a.userStore = db.NewUserStore(client, a.dbName)
+	a.roleStore = db.NewRoleStore(client, a.dbName)
 	return nil
+}
+
+func responseWithJSON(
+	w http.ResponseWriter,
+	code int,
+	docs interface{},
+) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(docs)
 }
