@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/logger"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -19,23 +20,21 @@ type APIServer struct {
 	Port        int
 	logger      logger.Logger
 	httpServer  *http.Server
-	mongoURL    string
-	mongoDBName string
+	dbName      string
 	mongoClient *mongo.Client
+	userStore   *db.UserStore
 }
 
 func NewAPIServer(log logger.Logger) *APIServer {
 	return &APIServer{
-		Port:        4444,
-		logger:      log,
-		mongoURL:    "mongodb://localhost:27018",
-		mongoDBName: "adshield",
+		Port:   4444,
+		logger: log,
+		dbName: "ad-shield",
 	}
 }
 
 func (a *APIServer) Start() error {
 	addr := fmt.Sprintf("%s:%d", "", a.Port)
-
 	if err := a.ConnectToDB(); err != nil {
 		fmt.Printf("error while connecting to database server")
 		return err
@@ -46,8 +45,9 @@ func (a *APIServer) Start() error {
 	router.HandleFunc("/api/v1/scan/service", a.HandleServiceDetection).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/scan/pcap", a.handlePCAPFile).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/user/register", a.handleUserRegistration).Methods(http.MethodPost)
-	router.HandleFunc("/api/v1/user/login", nil).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/user/login", a.handleGetAllRegisteredUsers).Methods(http.MethodPost)
 
+	router.HandleFunc("/api/v1/user/all", nil).Methods(http.MethodGet)
 	router.Use(a.Logger)
 
 	corsOptions := cors.Options{
@@ -70,10 +70,11 @@ func (a *APIServer) Logger(nxt http.Handler) http.Handler {
 }
 
 func (a *APIServer) ConnectToDB() error {
+	mongoURL := "mongodb://localhost:27018"
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(options.Client().ApplyURI(a.mongoURL))
+	client, err := mongo.Connect(options.Client().ApplyURI(mongoURL))
 	if err != nil {
 		fmt.Printf("error while connecting to mongodb server: %v \n", err)
 		return err
@@ -85,5 +86,6 @@ func (a *APIServer) ConnectToDB() error {
 	}
 
 	a.mongoClient = client
+	a.userStore = db.NewUserStore(client, a.dbName)
 	return nil
 }
