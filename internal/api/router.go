@@ -18,13 +18,14 @@ import (
 )
 
 type APIServer struct {
-	Port        int
-	logger      logger.Logger
-	httpServer  *http.Server
-	dbName      string
-	mongoClient *mongo.Client
-	userStore   *db.UserStore
-	roleStore   *db.RoleStore
+	Port                  int
+	logger                logger.Logger
+	httpServer            *http.Server
+	dbName                string
+	mongoClient           *mongo.Client
+	userStore             *db.UserStore
+	roleStore             *db.RoleStore
+	serviceDetectionStore *db.ServiceStore
 }
 
 func NewAPIServer(log logger.Logger) *APIServer {
@@ -53,9 +54,12 @@ func (a *APIServer) Start() error {
 	router.HandleFunc("/api/v1/roles/add", a.handleAddRoles).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/roles", a.handleGetAllRoles).Methods(http.MethodGet)
 
-	// --------------------------ANALYSIS---------------------
+	// --------------------------PORT-ANALYSIS---------------------
 	router.HandleFunc("/api/v1/scan/port", a.HandlePortScan).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/scan/service", a.HandleServiceDetection).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/services", a.handleGetAllDetectedServices).Methods(http.MethodGet)
+
+	// ---------------------PCAP-FILE-ANALYSIS------------------------
 	router.HandleFunc("/api/v1/scan/pcap", a.handlePCAPFile).Methods(http.MethodPost)
 
 	router.Use(a.Logger)
@@ -101,6 +105,7 @@ func (a *APIServer) ConnectToDB() error {
 	a.mongoClient = client
 	a.userStore = db.NewUserStore(client, a.dbName)
 	a.roleStore = db.NewRoleStore(client, a.dbName)
+	a.serviceDetectionStore = db.NewServiceStore(client, a.dbName)
 	return nil
 }
 

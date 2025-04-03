@@ -98,3 +98,17 @@ func (us *UserStore) LoginUser(ctx context.Context, user models.ReqUserLogin) (*
 
 	return &u, nil
 }
+
+func (us *UserStore) GetUserByID(ctx context.Context, id bson.ObjectID) (*Users, error) {
+	var u Users
+
+	if err := us.c.FindOne(ctx, bson.M{"_id": id}).Decode(&u); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return &u, nil
+}

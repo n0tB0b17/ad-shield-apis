@@ -6,22 +6,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/logger"
 	"github.com/bob17/adpis/internal/scanner"
 
 	"github.com/bob17/adpis/pkg/utils"
 )
 
-type ServiceResult struct {
-	Addr    string
-	Port    int
-	Status  string
-	Service string
-	Version string
-}
-
 type ServiceDetector interface {
-	Detect(resp <-chan scanner.ScanResult) <-chan ServiceResult
+	Detect(resp <-chan scanner.ScanResult) <-chan db.ServiceResult
 }
 
 type NMAPServiceDetector struct {
@@ -38,8 +31,8 @@ func NewNMAPServiceDetector(l logger.Logger, t time.Duration, mw int) *NMAPServi
 	}
 }
 
-func (n *NMAPServiceDetector) Detect(resp <-chan scanner.ScanResult) <-chan ServiceResult {
-	serviceResp := make(chan ServiceResult, n.MaxWorker)
+func (n *NMAPServiceDetector) Detect(resp <-chan scanner.ScanResult) <-chan db.ServiceResult {
+	serviceResp := make(chan db.ServiceResult, n.MaxWorker)
 	var wg sync.WaitGroup
 
 	for i := 0; i < n.MaxWorker; i++ {
@@ -55,7 +48,7 @@ func (n *NMAPServiceDetector) Detect(resp <-chan scanner.ScanResult) <-chan Serv
 	return serviceResp
 }
 
-func (n *NMAPServiceDetector) worker(scanResp <-chan scanner.ScanResult, serviceResp chan<- ServiceResult, wg *sync.WaitGroup) {
+func (n *NMAPServiceDetector) worker(scanResp <-chan scanner.ScanResult, serviceResp chan<- db.ServiceResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for resp := range scanResp {
@@ -63,20 +56,20 @@ func (n *NMAPServiceDetector) worker(scanResp <-chan scanner.ScanResult, service
 			result := n.detectService(resp.Port, resp.Addr)
 			serviceResp <- result
 		} else {
-			serviceResp <- ServiceResult{
+			serviceResp <- db.ServiceResult{
 				Port:   resp.Port,
-				Status: resp.Status,
+				Status: "closed",
 				Addr:   resp.Addr,
 			}
 		}
 	}
 }
 
-func (n *NMAPServiceDetector) detectService(port int, addr string) ServiceResult {
+func (n *NMAPServiceDetector) detectService(port int, addr string) db.ServiceResult {
 	cmd := exec.Command("nmap", "-sV", "-p", fmt.Sprintf("%d", port), "--host-timeout", n.Timeout.String(), addr)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return ServiceResult{
+		return db.ServiceResult{
 			Addr:    addr,
 			Port:    port,
 			Status:  "open",
@@ -90,7 +83,7 @@ func (n *NMAPServiceDetector) detectService(port int, addr string) ServiceResult
 	if err != nil {
 		fmt.Printf("Error running nmap on port for service detection: %s:%d \n", addr, port)
 		n.Logger.Info(fmt.Sprintf("Error running nmap on port: %d", port))
-		return ServiceResult{
+		return db.ServiceResult{
 			Addr:    addr,
 			Port:    port,
 			Status:  "open",
@@ -99,7 +92,7 @@ func (n *NMAPServiceDetector) detectService(port int, addr string) ServiceResult
 		}
 	}
 
-	return ServiceResult{
+	return db.ServiceResult{
 		Addr:    addr,
 		Port:    port,
 		Status:  "open",

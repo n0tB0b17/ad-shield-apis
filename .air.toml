@@ -1,0 +1,16 @@
+root = "."
+
+[build]
+  cmd = "go run ./main.go"  
+  include_ext = ["go"] 
+  delay = 1000  
+
+[log]
+  time = true  
+
+[color]
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"

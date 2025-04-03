@@ -19,19 +19,28 @@ func (a *APIServer) handleUserRegistration(w http.ResponseWriter, r *http.Reques
 			"description": "to add new user, maybe try METHOD post",
 			"status":      "failed",
 		})
+
 		return
 	}
 
 	var user models.ReqUserRegistration
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid body provided, as server is unable to decode: %v", err), http.StatusBadRequest)
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "unable to decode body",
+			"description": fmt.Sprintf("invalid body provided, as server is unable to decode: %v", err),
+			"status":      "failed",
+		})
 		return
 	}
 
 	isValid := isUserValid(user)
 	if !isValid {
-		http.Error(w, "valid input not provided", http.StatusBadRequest)
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "invalid body",
+			"description": fmt.Sprintf("invalid body provided, as server is unable to decode: %v", err),
+			"status":      "failed",
+		})
 		return
 	}
 
@@ -70,7 +79,11 @@ func (a *APIServer) handleUserRegistration(w http.ResponseWriter, r *http.Reques
 
 	err = a.userStore.AddUserToDB(ctx, dbUser)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error while registering user to database: %v \n", err), http.StatusInternalServerError)
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "internal error",
+			"description": fmt.Sprintf("error while registering user: %v \n", err),
+			"status":      "failed",
+		})
 		return
 	}
 
