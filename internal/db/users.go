@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bob17/adpis/internal/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -50,6 +51,11 @@ func NewUserStore(client *mongo.Client, dbName string) *UserStore {
 
 func (us *UserStore) AddUserToDB(ctx context.Context, user Users) error {
 	resp, err := us.c.InsertOne(ctx, user)
+
+	if mongo.IsDuplicateKeyError(err) {
+		return fmt.Errorf("user already exist, try with unique username")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -77,4 +83,18 @@ func (us *UserStore) GetAllUsersFromDB(ctx context.Context, limit, skip int64) (
 	}
 
 	return users, nil
+}
+
+func (us *UserStore) LoginUser(ctx context.Context, user models.ReqUserLogin) (*Users, error) {
+	var u Users
+
+	if err := us.c.FindOne(ctx, bson.M{"user_name": user.UserName, "password": user.Password}).Decode(&u); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return &u, nil
 }
