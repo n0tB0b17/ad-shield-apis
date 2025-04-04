@@ -191,6 +191,55 @@ func (a *APIServer) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *APIServer) handleGetUserByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "invalid method",
+			"description": "to get user by id, please try METHOD get",
+			"status":      "failed",
+		})
+		return
+	}
+
+	_id := r.URL.Query().Get("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	id, err := bson.ObjectIDFromHex(_id)
+	if err != nil {
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "invalid id",
+			"description": fmt.Sprintf("invalid id provided: %v", err),
+			"status":      "failed",
+		})
+		return
+	}
+	user, err := a.userStore.GetUserByID(ctx, id)
+	if err != nil {
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "internal server error",
+			"description": fmt.Sprintf("error while getting user by id: %v", err),
+			"status":      "failed",
+		})
+		return
+	}
+
+	if user == nil {
+		responseWithJSON(w, http.StatusNotFound, map[string]interface{}{
+			"message":     "user not found",
+			"description": fmt.Sprintf("user doesn't exist for given id: %v", id),
+			"status":      "failed",
+		})
+		return
+	}
+	responseWithJSON(w, http.StatusAccepted, map[string]interface{}{
+		"message":     "user found",
+		"description": fmt.Sprintf("user with id: %s has been found", id.Hex()),
+		"status":      "success",
+		"user":        user,
+	})
+}
+
 func isUserValid(usr models.ReqUserRegistration) bool {
 	if usr.Email == "" || usr.Password == "" {
 		return false

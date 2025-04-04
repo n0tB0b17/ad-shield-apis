@@ -49,6 +49,7 @@ func (a *APIServer) Start() error {
 	router.HandleFunc("/api/v1/user/register", a.handleUserRegistration).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/users/all", a.handleGetAllRegisteredUsers).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/user/login", a.handleUserLogin).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/user/{id}", a.handleGetUserByID).Methods(http.MethodGet)
 
 	// ------------------ROLES--------------------------
 	router.HandleFunc("/api/v1/roles/add", a.handleAddRoles).Methods(http.MethodPost)

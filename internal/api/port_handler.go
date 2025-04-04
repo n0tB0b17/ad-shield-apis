@@ -186,7 +186,7 @@ func getServiceDetectionResult(in models.ReqPortScan, l logger.Logger) []db.Serv
 		}
 	}()
 
-	srvc := service.NewNMAPServiceDetector(l, 10*time.Second, 10)
+	srvc := service.NewNMAPServiceDetector(l, 15*time.Second, 10)
 	detectResp := srvc.Detect(portScanResp)
 
 	for detected := range detectResp {
