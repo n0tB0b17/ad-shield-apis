@@ -55,7 +55,7 @@ func (a *APIServer) handleAddRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseWithJSON(w, http.StatusAccepted, map[string]interface{}{
+	responseWithJSON(w, http.StatusCreated, map[string]interface{}{
 		"message":     "Role added",
 		"description": fmt.Sprintf("successfully added new role named: %s", addRole.Name),
 		"status":      "success",

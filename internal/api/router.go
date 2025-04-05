@@ -22,17 +22,20 @@ type APIServer struct {
 	logger                logger.Logger
 	httpServer            *http.Server
 	dbName                string
+	pcapDirectory         string
 	mongoClient           *mongo.Client
 	userStore             *db.UserStore
 	roleStore             *db.RoleStore
 	serviceDetectionStore *db.ServiceStore
+	pcapStore             *db.PCAPStore
 }
 
 func NewAPIServer(log logger.Logger) *APIServer {
 	return &APIServer{
-		Port:   4444,
-		logger: log,
-		dbName: "ad-shield",
+		Port:          4444,
+		logger:        log,
+		dbName:        "ad-shield",
+		pcapDirectory: "/home/baiman/Desktop/pcap-store",
 	}
 }
 
@@ -62,6 +65,7 @@ func (a *APIServer) Start() error {
 
 	// ---------------------PCAP-FILE-ANALYSIS------------------------
 	router.HandleFunc("/api/v1/scan/pcap", a.handlePCAPFile).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/pcap/upload", a.handleUploadPCAPFile).Methods(http.MethodPost)
 
 	router.Use(a.Logger)
 
@@ -107,6 +111,7 @@ func (a *APIServer) ConnectToDB() error {
 	a.userStore = db.NewUserStore(client, a.dbName)
 	a.roleStore = db.NewRoleStore(client, a.dbName)
 	a.serviceDetectionStore = db.NewServiceStore(client, a.dbName)
+	a.pcapStore = db.NewPCAPStore(client, a.dbName)
 	return nil
 }
 
