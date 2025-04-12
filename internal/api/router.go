@@ -70,9 +70,21 @@ func (a *APIServer) Start() error {
 
 	// -----------------------AD-ROUTES-----------------------------------
 	router.HandleFunc("/api/v1/ad/checkhealth", a.handleADHealthCheck).Methods(http.MethodPost)
-	router.HandleFunc("/api/v1/ad/authenticate", nil).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/ad/authenticate", a.handleADAuthentication).Methods(http.MethodPost)
+	// ------------------AD-USER----------------------------------------------
 	router.HandleFunc("/api/v1/ad/object/user/add", nil).Methods(http.MethodPost)
-	router.HandleFunc("/api/v1/ad/object/users", nil).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/ad/object/users", a.handleGetAllUsers).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/ad/object/user", a.handleUserByDN).Methods(http.MethodPost)
+
+	// ----------------AD-GROUPS--------------------------------------------
+	router.HandleFunc("/api/v1/ad/object/group/add", nil).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/ad/object/groups", a.handleGetAllGroups).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/ad/object/group", a.handleGetAGroup).Methods(http.MethodPost)
+
+	// --------------------AD-OU---------------------------------------------
+	router.HandleFunc("/api/v1/ad/object/ou/add", nil).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/ad/object/ous", a.handleGetAllOU).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/ad/object/ou", a.handleGetAOU).Methods(http.MethodPost)
 
 	router.Use(a.Logger)
 

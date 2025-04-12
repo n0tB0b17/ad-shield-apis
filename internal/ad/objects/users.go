@@ -66,35 +66,31 @@ const (
 )
 
 type User struct {
-	SAMAccountName    string
-	UserPrincipalName string
-	DisplayName       string
-	GivenName         string
-	SurName           string
-	Mail              string
-	Description       string
-	Memberof          []string
-	ObjectGUID        string
-	ObjectSID         string
-
-	WhenCreated        time.Time
-	WhenChanged        time.Time
-	LastLogon          int64
-	LastLogonTimestamp int64
-	PwdLastSet         int64
-
-	UserAccountControl uint32
-	AccountExpires     int64
-
-	DistinguishedName string
-	Title             string
-	Department        string
-	Company           string
-	Manager           string
-	TelephoneNumber   string
-	Mobile            string
-
-	RawAttributes map[string][]string
+	SAMAccountName     string              `json:"samAccountName"`
+	UserPrincipalName  string              `json:"userPrincipalName"`
+	DisplayName        string              `json:"displayName"`
+	GivenName          string              `json:"givenName"`
+	SurName            string              `json:"surName"`
+	Mail               string              `json:"mail"`
+	Description        string              `json:"description"`
+	Memberof           []string            `json:"memberof"`
+	ObjectGUID         string              `json:"objectGUID"`
+	ObjectSID          string              `json:"objectSID"`
+	WhenCreated        time.Time           `json:"whenCreated"`
+	WhenChanged        time.Time           `json:"whenChanged"`
+	LastLogon          int64               `json:"lastLogon"`
+	LastLogonTimestamp int64               `json:"lastLogonTimestamp"`
+	PwdLastSet         int64               `json:"pwdLastSet"`
+	UserAccountControl uint32              `json:"userAccountControl"`
+	AccountExpires     int64               `json:"accountExpires"`
+	DistinguishedName  string              `json:"distinguishedName"`
+	Title              string              `json:"title"`
+	Department         string              `json:"department"`
+	Company            string              `json:"company"`
+	Manager            string              `json:"manager"`
+	TelephoneNumber    string              `json:"telephoneNumber"`
+	Mobile             string              `json:"mobile"`
+	RawAttributes      map[string][]string `json:"rawAttributes"`
 }
 
 type UserManager struct {
@@ -184,7 +180,7 @@ func (um *UserManager) GetUserBySAMAccountName(username, bindUser, bindPassword 
 
 func (um *UserManager) GetUserByDN(dn, bindUser, bindPassword string) (*User, error) {
 	req := ldap.NewSearchRequest(
-		um.baseDN,
+		dn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		"(objectClass=user)",
 		defaultUserAttr(),

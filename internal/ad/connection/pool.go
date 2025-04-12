@@ -50,6 +50,7 @@ func (p *ConnectionPool) Get() (*PooledConnection, error) {
 		}
 	}
 
+	// todo: check if port is open or closed
 	if len(p.connections) < p.config.MaxConnection {
 		fmt.Println("creating new connection")
 		conn, err := p.createNewConnection()

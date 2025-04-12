@@ -115,7 +115,8 @@ func (a *Authenticator) getCache(k cacheKey) (interface{}, bool) {
 	return v.value, true
 }
 
-func (a *Authenticator) Authenticate(logonName, password, username string) (*Session, error) {
+// 1st 2 > admin | 2nd 2> user
+func (a *Authenticator) Authenticate(logonName, password, username, upwd string) (*Session, error) {
 	fmt.Printf("Authenticating user: %s \n\n", logonName)
 
 	if logonName == "" || password == "" {
@@ -127,7 +128,7 @@ func (a *Authenticator) Authenticate(logonName, password, username string) (*Ses
 		return nil, err
 	}
 
-	conn, err := a.connManager.GetConnection(userInfo.DN, password)
+	conn, err := a.connManager.GetConnection(userInfo.DN, upwd)
 	if err != nil {
 		return nil, err
 	}
