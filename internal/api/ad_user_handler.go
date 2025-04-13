@@ -142,7 +142,7 @@ func (a *APIServer) handleGetAllUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reqBody models.ReqADFetchUsers
+	var reqBody models.ReqADObjectFetch
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"message":     "unable to decode",
@@ -196,7 +196,7 @@ func (a *APIServer) handleUserByDN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.ReqGetUserByDN
+	var req models.ReqADObjectFetchWithDN
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
 			"message":     "unable to decode",
@@ -239,4 +239,15 @@ func (a *APIServer) handleUserByDN(w http.ResponseWriter, r *http.Request) {
 		"status":      "success",
 		"user":        user,
 	})
+}
+
+func (a *APIServer) handleCreateNewUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "invalid method",
+			"description": "to access users, please send address of AD server",
+			"status":      "failed",
+		})
+		return
+	}
 }

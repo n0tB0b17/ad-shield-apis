@@ -38,27 +38,24 @@ const (
 )
 
 type Group struct {
-	DN                string
-	Name              string
-	SAMAccountName    string
-	DistinguishedName string
-	DisplayName       string
-	Description       string
-
-	Type          GroupType
-	Members       []string
-	MemberOf      []string
-	Email         string
-	Scope         string
-	ManagedBy     string
-	GroupCategory string
-
-	WhenCreated string
-	WhenChanged string
-	ObjectGUID  string
-	ObjectSID   string
-
-	RawAttributes map[string][]string
+	DN                string              `json:"dn"`
+	Name              string              `json:"name"`
+	SAMAccountName    string              `json:"samAccountName"`
+	DistinguishedName string              `json:"distinguishedName"`
+	DisplayName       string              `json:"displayName"`
+	Description       string              `json:"description"`
+	Type              GroupType           `json:"type"`
+	Members           []string            `json:"members"`
+	MemberOf          []string            `json:"memberOf"`
+	Email             string              `json:"email"`
+	Scope             string              `json:"scope"`
+	ManagedBy         string              `json:"managedBy"`
+	GroupCategory     string              `json:"groupCategory"`
+	WhenCreated       string              `json:"whenCreated"`
+	WhenChanged       string              `json:"whenChanged"`
+	ObjectGUID        string              `json:"objectGUID"`
+	ObjectSID         string              `json:"objectSID"`
+	RawAttributes     map[string][]string `json:"rawAttributes"`
 }
 
 type GroupManager struct {

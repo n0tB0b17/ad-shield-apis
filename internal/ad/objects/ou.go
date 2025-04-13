@@ -24,16 +24,14 @@ const (
 
 // OU represents an Organizational Unit in Active Directory
 type OU struct {
-	Name              string
-	DistinguishedName string
-	Description       string
-
-	WhenCreated time.Time
-	WhenChanged time.Time
-	ObjectGUID  string
-	ObjectSID   string
-
-	RawAttributes map[string][]string
+	Name              string              `json:"name"`
+	DistinguishedName string              `json:"distinguishedName"`
+	Description       string              `json:"description"`
+	WhenCreated       time.Time           `json:"whenCreated"`
+	WhenChanged       time.Time           `json:"whenChanged"`
+	ObjectGUID        string              `json:"objectGUID"`
+	ObjectSID         string              `json:"objectSID"`
+	RawAttributes     map[string][]string `json:"rawAttributes"`
 }
 
 // OUManager manages OU-related operations
