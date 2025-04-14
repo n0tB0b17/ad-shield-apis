@@ -56,6 +56,10 @@ func NewClientStore(client *mongo.Client, dbname string, logger logger.Logger) *
 }
 
 func (cs *ClientStore) AddNewClient(ctx context.Context, client ADClient) error {
+	if client.ID.IsZero() {
+		client.ID = bson.NewObjectID()
+	}
+
 	resp, err := cs.c.InsertOne(ctx, client)
 
 	if mongo.IsDuplicateKeyError(err) {

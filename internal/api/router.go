@@ -28,6 +28,7 @@ type APIServer struct {
 	serviceDetectionStore *db.ServiceStore
 	pcapStore             *db.PCAPStore
 	clientStore           *db.ClientStore
+	userActivityStore     *db.UserActivityStore
 }
 
 func NewAPIServer(log logger.Logger) *APIServer {

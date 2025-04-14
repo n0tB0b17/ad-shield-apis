@@ -20,6 +20,7 @@ func (a *APIServer) InitializeStores(nxt http.Handler) http.Handler {
 			a.roleStore = db.NewRoleStore(a.mongoClient, a.dbName)
 			a.serviceDetectionStore = db.NewServiceStore(a.mongoClient, a.dbName)
 			a.pcapStore = db.NewPCAPStore(a.mongoClient, a.dbName)
+			a.userActivityStore = db.NewUserActivityStore(a.mongoClient, a.dbName, a.logger)
 		}
 
 		nxt.ServeHTTP(w, r)

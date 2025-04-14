@@ -63,6 +63,10 @@ func (s *ServiceStore) GetAllServiceDetectedHistory(ctx context.Context, limit, 
 }
 
 func (s *ServiceStore) AddDetectedService(ctx context.Context, docs PortScanHistory) error {
+	if docs.ID.IsZero() {
+		docs.ID = bson.NewObjectID()
+	}
+
 	resp, err := s.c.InsertOne(ctx, docs)
 	if err != nil {
 		fmt.Println("error while adding service to db")

@@ -50,6 +50,10 @@ func NewUserStore(client *mongo.Client, dbName string) *UserStore {
 }
 
 func (us *UserStore) AddUserToDB(ctx context.Context, user Users) error {
+	if user.ID.IsZero() {
+		user.ID = bson.NewObjectID()
+	}
+
 	resp, err := us.c.InsertOne(ctx, user)
 
 	if mongo.IsDuplicateKeyError(err) {

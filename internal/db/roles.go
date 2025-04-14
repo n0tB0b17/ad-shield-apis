@@ -64,6 +64,10 @@ func (ra *RoleStore) GetAllRoles(ctx context.Context, limit, skip int64) ([]Role
 }
 
 func (ra *RoleStore) AddRoles(ctx context.Context, role Roles) error {
+	if role.ID.IsZero() {
+		role.ID = bson.NewObjectID()
+	}
+
 	resp, err := ra.c.InsertOne(ctx, role)
 	if err != nil {
 		return err

@@ -49,6 +49,10 @@ func NewPCAPStore(client *mongo.Client, dbname string) *PCAPStore {
 }
 
 func (ps *PCAPStore) AddNewPCAP(ctx context.Context, docs PCAPMetaData) error {
+	if docs.ID.IsZero() {
+		docs.ID = bson.NewObjectID()
+	}
+
 	resp, err := ps.c.InsertOne(ctx, docs)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
