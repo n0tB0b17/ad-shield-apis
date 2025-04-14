@@ -228,6 +228,18 @@ func (a *APIServer) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *APIServer) handleUserLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "invalid method",
+			"description": "to logout of application, please try METHOD get",
+			"status":      "failed",
+		})
+		return
+	}
+
+}
+
 func (a *APIServer) handleGetUserByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{

@@ -54,6 +54,9 @@ func (a *APIServer) Start() error {
 	clientRoute := router.PathPrefix("/api/v1/{client_id}").Subrouter()
 	clientRoute.Use(a.ValidateIfRealClientID, a.InitializeStores)
 
+	protectedRoute := router.PathPrefix("/api/v1/{client_id}").Subrouter()
+	protectedRoute.Use(a.ValidateIfRealClientID, a.InitializeStores, a.Authorization)
+
 	// --------------SUPER-ADMIN---------------------------------
 	superAdminRoute.HandleFunc("/add/client", a.handleClientAdd).Methods(http.MethodPost)
 	superAdminRoute.HandleFunc("/clients", a.handleGetAllClient).Methods(http.MethodGet)
@@ -65,10 +68,11 @@ func (a *APIServer) Start() error {
 	clientRoute.HandleFunc("/user/register", a.handleUserRegistration).Methods(http.MethodPost)
 	clientRoute.HandleFunc("/users/all", a.handleGetAllRegisteredUsers).Methods(http.MethodGet)
 	clientRoute.HandleFunc("/user/login", a.handleUserLogin).Methods(http.MethodPost)
+	protectedRoute.HandleFunc("/user/logout", a.handleUserLogout).Methods(http.MethodGet)
 	clientRoute.HandleFunc("/user/{id}", a.handleGetUserByID).Methods(http.MethodGet)
 
 	// ------------------ROLES--------------------------
-	clientRoute.HandleFunc("/roles/add", a.handleAddRoles).Methods(http.MethodPost)
+	protectedRoute.HandleFunc("/roles/add", a.handleAddRoles).Methods(http.MethodPost)
 	clientRoute.HandleFunc("/roles", a.handleGetAllRoles).Methods(http.MethodGet)
 
 	// --------------------------PORT-ANALYSIS---------------------
@@ -102,7 +106,7 @@ func (a *APIServer) Start() error {
 	corsOptions := cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Content-Type", "Content-Length", "Application-Encoding"},
+		AllowedHeaders: []string{"Accept", "Content-Type", "Content-Length", "Application-Encoding", "Authorization"},
 	}
 	c := cors.New(corsOptions)
 

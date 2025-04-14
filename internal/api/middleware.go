@@ -2,12 +2,16 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
+	"github.com/bob17/adpis/internal/rbac"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -81,7 +85,81 @@ func (a *APIServer) Logger(nxt http.Handler) http.Handler {
 
 func (a *APIServer) Authorization(nxt http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			responseWithJSON(w, http.StatusUnauthorized, map[string]interface{}{
+				"message":     "unauthorized",
+				"description": "authorization header is missing",
+				"status":      "failed",
+			})
+			return
+		}
 
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			responseWithJSON(w, http.StatusUnauthorized, map[string]interface{}{
+				"message":     "unauthorized",
+				"description": "invalid authorization format, should be 'Bearer <token>'",
+				"status":      "failed",
+			})
+			return
+		}
+
+		tokenStr := parts[1]
+		claims := &rbac.Claims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %s", t.Header["alg"])
+			}
+
+			return []byte(rbac.JwtSecret), nil
+		})
+
+		if err != nil {
+			if err == jwt.ErrSignatureInvalid {
+				responseWithJSON(w, http.StatusUnauthorized, map[string]interface{}{
+					"message":     "unauthorized",
+					"description": "invalid token signature",
+					"status":      "failed",
+				})
+
+				return
+			}
+
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				if claims.UserID != "" {
+					id, _ := bson.ObjectIDFromHex(claims.UserID)
+					ctx := r.Context()
+
+					_ = a.userActivityStore.RecordActivity(ctx, db.UserActivity{
+						ID:        id,
+						Action:    "token_expired",
+						Timestamp: time.Now(),
+						IPAddress: r.RemoteAddr,
+						UserAgent: r.UserAgent(),
+					})
+				}
+
+				responseWithJSON(w, http.StatusUnauthorized, map[string]interface{}{
+					"message":     "unauthorized",
+					"description": "token has expired",
+					"status":      "failed",
+				})
+				return
+			}
+		}
+
+		if !token.Valid {
+			responseWithJSON(w, http.StatusUnauthorized, map[string]interface{}{
+				"message":     "unauthorized",
+				"description": "invalid token",
+				"status":      "failed",
+			})
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "auth_claim", claims)
+		r = r.WithContext(ctx)
 		nxt.ServeHTTP(w, r)
 	})
 }

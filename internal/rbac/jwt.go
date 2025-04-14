@@ -1,6 +1,7 @@
 package rbac
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
@@ -8,7 +9,7 @@ import (
 )
 
 const (
-	jwtSecret     = ""
+	JwtSecret     = "test_secret"
 	jwtExpiration = 2 * time.Hour
 )
 
@@ -29,11 +30,11 @@ func GenerateToken(user *db.Users, client_id string) (string, time.Time, error) 
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   user.ID.Hex(),
+			Subject:   fmt.Sprintf("%v", user),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenStr, err := token.SignedString([]byte(jwtSecret))
+	tokenStr, err := token.SignedString([]byte(JwtSecret))
 	return tokenStr, expTime, err
 }
