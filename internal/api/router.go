@@ -70,6 +70,7 @@ func (a *APIServer) Start() error {
 	clientRoute.HandleFunc("/user/login", a.handleUserLogin).Methods(http.MethodPost)
 	protectedRoute.HandleFunc("/user/logout", a.handleUserLogout).Methods(http.MethodGet)
 	clientRoute.HandleFunc("/user/{id}", a.handleGetUserByID).Methods(http.MethodGet)
+	clientRoute.HandleFunc("/user/stats/{id}", a.handleGetUserStats).Methods(http.MethodGet)
 
 	// ------------------ROLES--------------------------
 	protectedRoute.HandleFunc("/roles/add", a.handleAddRoles).Methods(http.MethodPost)

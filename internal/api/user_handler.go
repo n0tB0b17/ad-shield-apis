@@ -313,6 +313,70 @@ func (a *APIServer) handleGetUserByID(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *APIServer) handleGetUserStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		return
+	}
+
+	timeframe := r.URL.Query().Get("timeframe")
+	if timeframe == "" {
+		timeframe = "daily"
+	}
+
+	var startDate, endDate time.Time
+	now := time.Now()
+
+	switch timeframe {
+	case "daily":
+		startDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		endDate = startDate.Add(24 * time.Hour)
+	case "weekly":
+		dayFromSunday := int(now.Weekday())
+		startDate = time.Date(now.Year(), now.Month(), now.Day()-dayFromSunday, 0, 0, 0, 0, now.Location())
+		endDate = startDate.Add(7 * 24 * time.Hour)
+	case "monthly":
+		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		endDate = startDate.AddDate(0, 1, 0)
+	default:
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "invalid timeframe provided",
+			"description": "timeframe should be daily/weekly/monthly, other are ignored",
+			"status":      "failed",
+		})
+		return
+	}
+
+	vars := mux.Vars(r)
+	user_id := vars["id"]
+
+	userID, err := bson.ObjectIDFromHex(user_id)
+	if err != nil {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "invalid id",
+			"description": "user id provided in url seems to be invalid",
+			"status":      "failed",
+		})
+		return
+	}
+
+	stats, err := a.userActivityStore.GetUserActivityStats(r.Context(), userID, startDate, endDate)
+	if err != nil {
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "stats not found",
+			"description": err.Error(),
+			"status":      "failed",
+		})
+		return
+	}
+
+	responseWithJSON(w, http.StatusOK, map[string]interface{}{
+		"message":     "here is user stats",
+		"description": "user activity stats fetched successfully",
+		"status":      "success",
+		"docs":        stats,
+	})
+}
+
 func isUserValid(usr models.ReqUserRegistration) bool {
 	if usr.Email == "" || usr.Password == "" {
 		return false
