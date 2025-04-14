@@ -48,10 +48,10 @@ func (a *APIServer) Start() error {
 	}
 
 	router := mux.NewRouter()
-	superAdminRoute := router.PathPrefix("/api/v1").Subrouter()
-	clientRoute := router.PathPrefix("/api/v1/{client_id}").Subrouter()
-
 	router.Use(a.Logger)
+	superAdminRoute := router.PathPrefix("/api/v1").Subrouter()
+
+	clientRoute := router.PathPrefix("/api/v1/{client_id}").Subrouter()
 	clientRoute.Use(a.ValidateIfRealClientID, a.InitializeStores)
 
 	// --------------SUPER-ADMIN---------------------------------

@@ -9,6 +9,8 @@ import (
 
 	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/models"
+	"github.com/bob17/adpis/internal/rbac"
+	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -185,10 +187,44 @@ func (a *APIServer) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	vars := mux.Vars(r)
+	client_id := vars["client_id"]
+
+	token, expTime, err := rbac.GenerateToken(user, client_id)
+	if err != nil {
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "unable to generate jwt token",
+			"description": err.Error(),
+			"status":      "failed",
+		})
+		return
+	}
+
+	actCtx, actCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer actCancel()
+
+	activity := db.UserActivity{
+		UserID:    user.ID,
+		Action:    "login",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	}
+
+	err = a.userActivityStore.RecordActivity(actCtx, activity)
+	if err != nil {
+		fmt.Println("unable to record activity, check file log for more information")
+	}
+
 	responseWithJSON(w, http.StatusAccepted, map[string]interface{}{
 		"message":     "logged-in",
 		"description": "user with provided information has been logged in",
 		"status":      "success",
+		"docs": map[string]interface{}{
+			"token":    token,
+			"expireAt": expTime,
+			"user":     user,
+		},
 	})
 }
 
