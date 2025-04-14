@@ -359,6 +359,14 @@ func (a *APIServer) handleGetUserStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "user_stat_req",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
+
 	stats, err := a.userActivityStore.GetUserActivityStats(r.Context(), userID, startDate, endDate)
 	if err != nil {
 		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{

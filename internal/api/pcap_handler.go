@@ -17,6 +17,7 @@ import (
 	"github.com/bob17/adpis/internal/analysis/transport"
 	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/pcap"
+	"github.com/bob17/adpis/internal/rbac"
 	"github.com/google/gopacket"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -98,6 +99,26 @@ func (a *APIServer) handleAnalyzeOfPCAP(w http.ResponseWriter, r *http.Request) 
 	}
 
 	wg.Wait()
+
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "analyze_pcap_file",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
+
 	responseWithJSON(w, http.StatusOK, map[string]interface{}{
 		"message":                   "pcap upload",
 		"description":               "pcap file has been uploaded",
@@ -244,6 +265,25 @@ func (a *APIServer) handleUploadPCAPFile(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "upload_pcap_file",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
+
 	responseWithJSON(w, http.StatusCreated, map[string]interface{}{
 		"message":        "added pcap-metadata",
 		"description":    "pcap file uploaded, now you can start analysis process",
@@ -278,6 +318,25 @@ func (a *APIServer) handleGetAllPcapMetaData(w http.ResponseWriter, r *http.Requ
 		})
 		return
 	}
+
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "get_all_pcap_meta_data",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
 
 	responseWithJSON(w, http.StatusOK, map[string]interface{}{
 		"message":     fmt.Sprintf("total number of pcap meta data: %d", len(metas)),

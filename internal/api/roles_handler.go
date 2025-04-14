@@ -9,6 +9,7 @@ import (
 
 	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/models"
+	"github.com/bob17/adpis/internal/rbac"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -55,6 +56,25 @@ func (a *APIServer) handleAddRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "add_new_role",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
+
 	responseWithJSON(w, http.StatusCreated, map[string]interface{}{
 		"message":     "Role added",
 		"description": fmt.Sprintf("successfully added new role named: %s", addRole.Name),
@@ -99,6 +119,25 @@ func (a *APIServer) handleGetAllRoles(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "get_all_roles",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
 
 	responseWithJSON(w, http.StatusAccepted, map[string]interface{}{
 		"message":     fmt.Sprintf("total roles: %d", len(roles)),

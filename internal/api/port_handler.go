@@ -10,6 +10,7 @@ import (
 	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/logger"
 	"github.com/bob17/adpis/internal/models"
+	"github.com/bob17/adpis/internal/rbac"
 	"github.com/bob17/adpis/internal/scanner"
 	"github.com/bob17/adpis/internal/service"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -64,7 +65,7 @@ func (a *APIServer) HandleServiceDetection(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if in.UserID.Hex() == "000000000000000000000000" || !isValidObjectID(in.UserID.Hex()) {
+	if in.UserID.IsZero() || !isValidObjectID(in.UserID.Hex()) {
 		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"message":     "invalid userid",
 			"description": "provided userID is invalid, try authenticating and scan with proper user",
@@ -126,6 +127,25 @@ func (a *APIServer) HandleServiceDetection(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "port_scan",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
+
 	responseWithJSON(w, http.StatusCreated, map[string]interface{}{
 		"message":     "successful added to database",
 		"description": fmt.Sprintf("service detection for given port-range on address: %s", docs.TargetAddress),
@@ -160,6 +180,25 @@ func (a *APIServer) handleGetAllDetectedServices(w http.ResponseWriter, r *http.
 
 		return
 	}
+
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "get_all_scanned_result",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
 
 	responseWithJSON(w, http.StatusOK, map[string]interface{}{
 		"message":     fmt.Sprintf("successfully fetched: %d ", len(services)),

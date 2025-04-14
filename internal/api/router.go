@@ -70,21 +70,21 @@ func (a *APIServer) Start() error {
 	clientRoute.HandleFunc("/user/login", a.handleUserLogin).Methods(http.MethodPost)
 	protectedRoute.HandleFunc("/user/logout", a.handleUserLogout).Methods(http.MethodGet)
 	clientRoute.HandleFunc("/user/{id}", a.handleGetUserByID).Methods(http.MethodGet)
-	clientRoute.HandleFunc("/user/stats/{id}", a.handleGetUserStats).Methods(http.MethodGet)
+	protectedRoute.HandleFunc("/user/stats/{id}", a.handleGetUserStats).Methods(http.MethodGet)
 
 	// ------------------ROLES--------------------------
 	protectedRoute.HandleFunc("/roles/add", a.handleAddRoles).Methods(http.MethodPost)
 	protectedRoute.HandleFunc("/roles", a.handleGetAllRoles).Methods(http.MethodGet)
 
 	// --------------------------PORT-ANALYSIS---------------------
-	clientRoute.HandleFunc("/scan/port", a.HandlePortScan).Methods(http.MethodPost)
-	clientRoute.HandleFunc("/scan/service", a.HandleServiceDetection).Methods(http.MethodPost)
-	clientRoute.HandleFunc("/services", a.handleGetAllDetectedServices).Methods(http.MethodGet)
+	protectedRoute.HandleFunc("/scan/port", a.HandlePortScan).Methods(http.MethodPost)
+	protectedRoute.HandleFunc("/scan/service", a.HandleServiceDetection).Methods(http.MethodPost)
+	protectedRoute.HandleFunc("/services", a.handleGetAllDetectedServices).Methods(http.MethodGet)
 
 	// ---------------------PCAP-FILE-ANALYSIS------------------------
-	clientRoute.HandleFunc("/pcap/scan/{id}", a.handleAnalyzeOfPCAP).Methods(http.MethodGet)
-	clientRoute.HandleFunc("/pcap/upload", a.handleUploadPCAPFile).Methods(http.MethodPost)
-	clientRoute.HandleFunc("/pcap/metas", a.handleGetAllPcapMetaData).Methods(http.MethodGet)
+	protectedRoute.HandleFunc("/pcap/scan/{id}", a.handleAnalyzeOfPCAP).Methods(http.MethodGet)
+	protectedRoute.HandleFunc("/pcap/upload", a.handleUploadPCAPFile).Methods(http.MethodPost)
+	protectedRoute.HandleFunc("/pcap/metas", a.handleGetAllPcapMetaData).Methods(http.MethodGet)
 
 	// -----------------------AD-ROUTES-----------------------------------
 	clientRoute.HandleFunc("/ad/checkhealth", a.handleADHealthCheck).Methods(http.MethodPost)
