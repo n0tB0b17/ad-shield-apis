@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
@@ -44,8 +45,10 @@ func (a *APIServer) handleClientAdd(w http.ResponseWriter, r *http.Request) {
 		AdminName:         adClient.AdminUserName,
 		AdminEmail:        adClient.AdminEmail,
 		Password:          adClient.AdminPassword,
+		ContactNumber:     adClient.ContactNumber,
 		PrimaryColorHex:   adClient.PrimaryColorHex,
 		SecondaryColorHex: adClient.SecondaryColorHex,
+		CreatedAt:         time.Now(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -57,6 +60,52 @@ func (a *APIServer) handleClientAdd(w http.ResponseWriter, r *http.Request) {
 			"description": "check server logs for more information",
 			"status":      "failed",
 			"error":       err.Error(),
+		})
+		return
+	}
+
+	// create database for client with clientName
+	dbName := fmt.Sprintf("%s_adshield", strings.TrimSpace(newClient.ClientName))
+	roleStore := db.NewRoleStore(a.mongoClient, dbName)
+	roleCtx, roleCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer roleCancel()
+	role := db.Roles{
+		ID:          bson.NewObjectID(),
+		Name:        "admin",
+		Description: "this role was created when client purchase ad-shield service",
+		Permissions: []string{"all"},
+		CreatedAt:   time.Now(),
+	}
+
+	if err := roleStore.AddRoles(roleCtx, role); err != nil {
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "internal error while creating role",
+			"description": err.Error(),
+			"status":      "failed",
+		})
+		return
+	}
+
+	userStore := db.NewUserStore(a.mongoClient, dbName)
+	userCtx, userCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer userCancel()
+
+	// register new user with admin role
+	if err := userStore.AddUserToDB(userCtx, db.Users{
+		ID:            bson.NewObjectID(),
+		RoleID:        role.ID,
+		UserName:      newClient.AdminName,
+		Password:      newClient.Password,
+		Email:         newClient.AdminEmail,
+		ContactNumber: newClient.ContactNumber,
+		FirstName:     "", // can update later
+		LastName:      "", // can update later
+		CreatedAt:     time.Now(),
+	}); err != nil {
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "internal error while creating user",
+			"description": err.Error(),
+			"status":      "failed",
 		})
 		return
 	}

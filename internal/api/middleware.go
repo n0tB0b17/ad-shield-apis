@@ -7,9 +7,24 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bob17/adpis/internal/db"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+func (a *APIServer) InitializeStores(nxt http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a.dbName != "" {
+			fmt.Printf("Current DBName is: %s \n\n", a.dbName)
+			a.userStore = db.NewUserStore(a.mongoClient, a.dbName)
+			a.roleStore = db.NewRoleStore(a.mongoClient, a.dbName)
+			a.serviceDetectionStore = db.NewServiceStore(a.mongoClient, a.dbName)
+			a.pcapStore = db.NewPCAPStore(a.mongoClient, a.dbName)
+		}
+
+		nxt.ServeHTTP(w, r)
+	})
+}
 
 func (a *APIServer) ValidateIfRealClientID(nxt http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,6 +65,7 @@ func (a *APIServer) ValidateIfRealClientID(nxt http.Handler) http.Handler {
 			return
 		}
 
+		a.dbName = fmt.Sprintf("%s_adshield", client.ClientName)
 		nxt.ServeHTTP(w, r)
 	})
 }

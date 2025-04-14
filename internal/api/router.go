@@ -34,7 +34,7 @@ func NewAPIServer(log logger.Logger) *APIServer {
 	return &APIServer{
 		Port:          4444,
 		logger:        log,
-		dbName:        "ad-shield",
+		dbName:        "",
 		pcapDirectory: "/home/baiman/Desktop/pcap-store",
 	}
 }
@@ -51,7 +51,7 @@ func (a *APIServer) Start() error {
 	clientRoute := router.PathPrefix("/api/v1/{client_id}").Subrouter()
 
 	router.Use(a.Logger)
-	clientRoute.Use(a.ValidateIfRealClientID)
+	clientRoute.Use(a.ValidateIfRealClientID, a.InitializeStores)
 
 	// --------------SUPER-ADMIN---------------------------------
 	superAdminRoute.HandleFunc("/add/client", a.handleClientAdd).Methods(http.MethodPost)
@@ -127,11 +127,8 @@ func (a *APIServer) ConnectToDB() error {
 	}
 
 	a.mongoClient = client
-	a.userStore = db.NewUserStore(client, a.dbName)
-	a.roleStore = db.NewRoleStore(client, a.dbName)
-	a.serviceDetectionStore = db.NewServiceStore(client, a.dbName)
-	a.pcapStore = db.NewPCAPStore(client, a.dbName)
-	a.clientStore = db.NewClientStore(client, "god", a.logger)
+	a.clientStore = db.NewClientStore(client, "god_adshield", a.logger)
+
 	return nil
 }
 

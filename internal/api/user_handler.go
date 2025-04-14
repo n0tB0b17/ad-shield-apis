@@ -75,6 +75,7 @@ func (a *APIServer) handleUserRegistration(w http.ResponseWriter, r *http.Reques
 		RoleID:        user.RoleID,
 		Password:      user.Password,
 		ContactNumber: user.ContactNumber,
+		CreatedAt:     time.Now(),
 	}
 
 	err = a.userStore.AddUserToDB(ctx, dbUser)

@@ -20,8 +20,11 @@ type ADClient struct {
 	AdminName         string        `bson:"admin_name" json:"admin_name"`
 	AdminEmail        string        `bson:"admin_email" json:"admin_email"`
 	Password          string        `bson:"password" json:"password"`
+	ContactNumber     uint64        `bson:"contact_number" json:"contact_number"`
 	PrimaryColorHex   string        `bson:"primary_color" json:"primary_color"`
 	SecondaryColorHex string        `bson:"secondary_color" json:"secondary_color"`
+	CreatedAt         time.Time     `bson:"created_at,omit" json:"created_at,omitempty"`
+	UpdatedAt         time.Time     `bson:"updated_at,omit" json:"updated_at,omitempty"`
 }
 
 type ClientStore struct {
