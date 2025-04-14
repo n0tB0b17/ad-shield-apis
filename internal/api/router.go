@@ -73,7 +73,7 @@ func (a *APIServer) Start() error {
 
 	// ------------------ROLES--------------------------
 	protectedRoute.HandleFunc("/roles/add", a.handleAddRoles).Methods(http.MethodPost)
-	clientRoute.HandleFunc("/roles", a.handleGetAllRoles).Methods(http.MethodGet)
+	protectedRoute.HandleFunc("/roles", a.handleGetAllRoles).Methods(http.MethodGet)
 
 	// --------------------------PORT-ANALYSIS---------------------
 	clientRoute.HandleFunc("/scan/port", a.HandlePortScan).Methods(http.MethodPost)

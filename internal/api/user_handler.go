@@ -238,6 +238,30 @@ func (a *APIServer) handleUserLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusUnauthorized, map[string]interface{}{
+			"message":     "unauthorized",
+			"description": "user not authenticated",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
+		UserID:    userID,
+		Action:    "logout",
+		Timestamp: time.Now(),
+		IPAddress: r.RemoteAddr,
+		UserAgent: r.UserAgent(),
+	})
+
+	responseWithJSON(w, http.StatusOK, map[string]interface{}{
+		"message":     "logged-out",
+		"description": "user has been successfully logged out",
+		"status":      "success",
+	})
 }
 
 func (a *APIServer) handleGetUserByID(w http.ResponseWriter, r *http.Request) {
