@@ -65,18 +65,21 @@ func (a *APIServer) HandleServiceDetection(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if in.UserID.IsZero() || !isValidObjectID(in.UserID.Hex()) {
-		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"message":     "invalid userid",
-			"description": "provided userID is invalid, try authenticating and scan with proper user",
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
 			"status":      "failed",
 		})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	user, err := a.userStore.GetUserByID(ctx, in.UserID)
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
+	user, err := a.userStore.GetUserByID(ctx, userID)
 	if err != nil {
 		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"message":     "internal error",
@@ -127,17 +130,6 @@ func (a *APIServer) HandleServiceDetection(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
-	if !ok {
-		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
-			"message":     "auth failed",
-			"description": "auth_claim key not fetched",
-			"status":      "failed",
-		})
-		return
-	}
-
-	userID, _ := bson.ObjectIDFromHex(claims.UserID)
 	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
 		UserID:    userID,
 		Action:    "port_scan",
