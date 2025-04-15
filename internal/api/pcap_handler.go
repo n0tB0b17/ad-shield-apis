@@ -241,6 +241,18 @@ func (a *APIServer) handleUploadPCAPFile(w http.ResponseWriter, r *http.Request)
 	fileHash := hex.EncodeToString(hasher.Sum(nil))
 	a.logger.Info(fmt.Sprintf("successfully copied uploaded pcap file: [%s] content to path: [%s]", handler.Filename, pcapStoragePath))
 
+	// get jwt-decoded-token >> claims
+	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
+	if !ok {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "auth failed",
+			"description": "auth_claim key not fetched",
+			"status":      "failed",
+		})
+		return
+	}
+
+	userID, _ := bson.ObjectIDFromHex(claims.UserID)
 	docs := db.PCAPMetaData{
 		ID:               bson.NewObjectID(),
 		OriginalFileName: handler.Filename,
@@ -250,6 +262,7 @@ func (a *APIServer) handleUploadPCAPFile(w http.ResponseWriter, r *http.Request)
 		FileHash:         fileHash,
 		ContentType:      r.Header.Get("Content-Type"),
 		UploadedAt:       time.Now(),
+		UploadedBy:       userID,
 		LastAnalyzedTime: nil,
 	}
 
@@ -265,17 +278,6 @@ func (a *APIServer) handleUploadPCAPFile(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	claims, ok := r.Context().Value("auth_claim").(*rbac.Claims)
-	if !ok {
-		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
-			"message":     "auth failed",
-			"description": "auth_claim key not fetched",
-			"status":      "failed",
-		})
-		return
-	}
-
-	userID, _ := bson.ObjectIDFromHex(claims.UserID)
 	_ = a.userActivityStore.RecordActivity(r.Context(), db.UserActivity{
 		UserID:    userID,
 		Action:    "upload_pcap_file",
