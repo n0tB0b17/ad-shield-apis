@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -14,6 +15,7 @@ type ReqBody struct {
 }
 
 func Query(service, version string) ([]Resp, error) {
+	version = cleanVersionStr(version)
 	body := ReqBody{
 		Query: fmt.Sprintf("%s %s", service, version),
 	}
@@ -33,6 +35,20 @@ func makeRequest(body ReqBody) ([]Resp, error) {
 	resp := parseCommandResponse(outStr)
 
 	return resp, nil
+}
+
+func cleanVersionStr(in string) string {
+	bracketStr := regexp.MustCompile(`\([^()]*\)`)
+	for bracketStr.MatchString(in) {
+		in = bracketStr.ReplaceAllString(in, "")
+	}
+
+	intStr := regexp.MustCompile(`\d+\.?\d*`)
+	in = intStr.ReplaceAllString(in, "")
+
+	in = strings.Join(strings.Fields(in), " ")
+	in = strings.TrimSpace(in)
+	return in
 }
 
 func parseCommandResponse(output string) []Resp {

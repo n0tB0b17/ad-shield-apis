@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -16,7 +15,7 @@ var (
 
 	PongWait       time.Duration = 60 * time.Second
 	PingPeriod     time.Duration = (PongWait * 9) / 10
-	WriteWait      time.Duration = 30 * time.Second
+	WriteWait      time.Duration = 55 * time.Second
 	MaxMessageSize int64         = 512 * 1024
 )
 
@@ -32,9 +31,15 @@ func (a *APIServer) ServeWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Printf("error while upgrading websocket connection: %v \n", err)
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "Unable to upgrade connection to socket",
+			"description": err.Error(),
+			"status":      "failed",
+		})
 		return
 	}
 
+	a.logger.Debug(fmt.Sprintf("New client connected from: %s \n", conn.RemoteAddr().String()))
 	fmt.Printf("New client connected from: %s \n", conn.RemoteAddr().String())
 	md := ClientMetaData{
 		ID:          uuid.New().String(),
@@ -53,26 +58,12 @@ func (a *APIServer) ServeWS(w http.ResponseWriter, r *http.Request) {
 	WsClients.m[md.ID] = wsClient
 	WsClients.Unlock()
 
-	resp := map[string]interface{}{
-		"message":     "welcome to ws server",
-		"description": "try vulnerability scanning with two of our different services",
-		"status":      "success",
-	}
-
-	respBy, err := json.Marshal(resp)
-	if err != nil {
-		fmt.Println("error while parsing response interface...")
-		return
-	}
-
-	wsClient.Mu.Lock()
-	err = wsClient.Conn.WriteMessage(websocket.TextMessage, respBy)
-	wsClient.Mu.Unlock()
-
-	if err != nil {
-		fmt.Println("error while writing welcome message to client")
-		return
-	}
+	wsClient.sendResponse(
+		"success",
+		"welcome to ws server",
+		"try vulnerability scanning with two of our different services",
+		"",
+	)
 
 	go wsClient.readPump(a.serviceDetectionStore)
 	go wsClient.writePump()

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
+	"github.com/bob17/adpis/internal/searchsploit"
+	"github.com/bob17/adpis/internal/vulners"
 	"github.com/gorilla/websocket"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -26,9 +28,7 @@ const (
 
 type Message struct {
 	Type     ConnectionType `json:"type"`
-	ClientID string         `json:"client_id"`
-	UserID   string         `json:"user_id"`
-	JWTToken string         `json:"jwt_token,omitempty"`
+	JWTToken string         `json:"jwt_token"`
 	Payload  ScanPayload    `json:"payload,omitempty"`
 }
 
@@ -148,11 +148,13 @@ func (c *WSClient) processMessage(message []byte, a *db.ServiceStore) {
 		return
 	}
 
+	// decode token here and assign with user to verify it
+	// fmt.Println(msg.JWTToken)
 	switch msg.Type {
 	case SCAN_REQ:
 		c.handleMessage(msg.Payload, a)
 	case PING_REQ:
-		c.sendResponse("success", "PONG", "pongggg", "")
+		c.sendResponse("success", "PONG request", "Connection is alive, go ahead and scan for vulnerabilities", "")
 	default:
 		c.sendResponse("failed", "invalid-type", "retry again with proper type", "")
 	}
@@ -162,23 +164,88 @@ func (c *WSClient) handleMessage(payload ScanPayload, a *db.ServiceStore) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	id, _ := bson.ObjectIDFromHex(payload.PortScannerID)
-	_, err := a.GetDetectedServiceByID(ctx, id)
+	id, err := bson.ObjectIDFromHex(payload.PortScannerID)
 	if err != nil {
+		c.sendResponse(
+			"failed",
+			"invalid service_id",
+			"invalid service id provided, try with proper clientID",
+			"",
+		)
+
+		return
+	}
+
+	portInfo, err := a.GetDetectedServiceByID(ctx, id)
+	if err != nil {
+		c.sendResponse(
+			"failed",
+			"service not found",
+			err.Error(),
+			"",
+		)
 		return
 	}
 
 	switch payload.WhichScan {
 	case VULNERS_REQ:
-		// vulners.GetVulners(3)
-		c.sendResponse("success", "vulners API making", "xxxx", "")
+		c.scan("vs", portInfo.ScanDetail)
 	case SEARCHSPLOIT_REQ:
-		// searchsploit.Query()
-		c.sendResponse("success", "searchsploit API making", "xxxx", "")
+		c.scan("st", portInfo.ScanDetail)
 	case BOTH_REQ:
-		c.sendResponse("success", "both type request", "xxxxx", "")
+		c.scan("both", portInfo.ScanDetail)
 	default:
-		c.sendResponse("failed", "invalid scan type", "retry with proper scan type", "")
+		c.sendResponse("failed", "invalid scan type", "retry with proper scan type", portInfo)
+	}
+}
+
+func (c *WSClient) scan(t ScanTypeReq, ports []db.ServiceResult) {
+	for _, port := range ports {
+		if t == "vs" {
+			vuln := vulners.GetVulners(3)
+			resp, err := vuln.Query(port.Service, port.Version)
+			if err != nil {
+				c.sendResponse(
+					"failed",
+					"unable to query vulners API",
+					err.Error(),
+					"",
+				)
+				return
+			}
+
+			c.sendResponse(
+				"success",
+				"vulnerability scanned with vulners",
+				fmt.Sprintf("scanned vulnerabilities for: %s", port.Service),
+				resp,
+			)
+		} else if t == "st" {
+			resp, err := searchsploit.Query(port.Service, port.Version)
+			if err != nil {
+				c.sendResponse(
+					"failed",
+					"unable to query searchsploit API",
+					err.Error(),
+					"",
+				)
+				return
+			}
+
+			c.sendResponse(
+				"success",
+				"vulnerability scanned with searchsploit",
+				fmt.Sprintf("scanned vulnerabilities for: %s", port.Service),
+				resp,
+			)
+		} else if t == "both" {
+			c.sendResponse(
+				"success",
+				"both scan detected",
+				"for now, both scan is under-construction, it will be up in season release",
+				"",
+			)
+		}
 	}
 }
 

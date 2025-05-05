@@ -60,7 +60,6 @@ func (v *VulnersBase) makeRequest(body ReqBody) (*Resp, error) {
 		return nil, err
 	}
 
-	fmt.Println(body)
 	var docsResp Resp
 	var lastErr error
 
