@@ -113,8 +113,6 @@ func (a *APIServer) Start() error {
 	protectedRoute.Handle("/services", a.hasAccess("port-scan", "read")(http.HandlerFunc(a.handleGetAllDetectedServices))).Methods(http.MethodGet)
 	protectedRoute.Handle("/services/stats", a.hasAccess("port-scan", "read")(http.HandlerFunc(a.handleFetchStatsForAllHistory))).Methods(http.MethodGet)
 	protectedRoute.Handle("/scan/history/{id}", a.hasAccess("port-scan", "read")(http.HandlerFunc(a.handleGetServiceByID))).Methods(http.MethodGet)
-	// protectedRoute.Handle("/service/scan/vulnerability/{id}", a.hasAccess("port-scan", "vuln")(http.HandlerFunc(nil))).Methods(http.MethodGet)
-	// clientRoute.HandleFunc("/service/scan/vulnerability/{id}", a.handlePortVulnerabilityScanning).Methods(http.MethodGet)
 	protectedRoute.Handle("/service/delete/{id}", a.hasAccess("port-scan", "delete")(http.HandlerFunc(a.handleServiceDelete))).Methods(http.MethodDelete)
 	protectedRoute.Handle("/service/stats/{id}", a.hasAccess("port-scan", "read")(http.HandlerFunc(a.handleFetchStatsByServiceID))).Methods(http.MethodGet)
 	protectedRoute.Handle("/service/user/stats/{userID}", a.hasAccess("port-scan", "read")(http.HandlerFunc(a.handleFetchStatsForUser))).Methods(http.MethodGet)

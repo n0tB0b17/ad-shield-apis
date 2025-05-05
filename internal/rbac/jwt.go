@@ -38,3 +38,24 @@ func GenerateToken(user *db.Users, client_id string) (string, time.Time, error) 
 	tokenStr, err := token.SignedString([]byte(JwtSecret))
 	return tokenStr, expTime, err
 }
+
+func DecodeToken(tk string) (*Claims, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tk, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected error")
+		}
+
+		return []byte(JwtSecret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	return claims, nil
+}

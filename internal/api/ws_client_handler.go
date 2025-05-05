@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
+	"github.com/bob17/adpis/internal/rbac"
 	"github.com/bob17/adpis/internal/searchsploit"
 	"github.com/bob17/adpis/internal/vulners"
 	"github.com/gorilla/websocket"
@@ -148,8 +149,17 @@ func (c *WSClient) processMessage(message []byte, a *db.ServiceStore) {
 		return
 	}
 
-	// decode token here and assign with user to verify it
-	// fmt.Println(msg.JWTToken)
+	_, err := rbac.DecodeToken(msg.JWTToken)
+	if err != nil {
+		c.sendResponse(
+			"failed",
+			"invalid jwt token provided",
+			err.Error(),
+			"",
+		)
+		return
+	}
+
 	switch msg.Type {
 	case SCAN_REQ:
 		c.handleMessage(msg.Payload, a)
