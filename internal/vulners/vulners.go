@@ -34,6 +34,44 @@ func GetVulners(retries int) *VulnersBase {
 	}
 }
 
+func (v *VulnersBase) HealthCheck() (bool, error) {
+	client := &http.Client{
+		Timeout: v.Timeout,
+	}
+
+	// var resp interface{}
+	var lastError error
+	for i := 1; i <= v.Retries; i++ {
+		req, err := http.NewRequest("GET", v.URL, nil)
+		if err != nil {
+			lastError = err
+			time.Sleep(time.Duration(i) * time.Second)
+			continue
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("accept", "application/json")
+
+		apiResp, err := client.Do(req)
+		if err != nil {
+			lastError = err
+			time.Sleep(time.Duration(i) * time.Second)
+			continue
+		}
+
+		fmt.Println(apiResp.StatusCode)
+		if apiResp.StatusCode != http.StatusOK {
+			lastError = fmt.Errorf("invalid status code got")
+			time.Sleep(time.Duration(i) * time.Second)
+			continue
+		}
+
+		return true, nil
+	}
+
+	return false, lastError
+}
+
 func (v *VulnersBase) Query(service, version string) (*Resp, error) {
 	body := ReqBody{
 		Query: fmt.Sprintf("%s %s", service, version),

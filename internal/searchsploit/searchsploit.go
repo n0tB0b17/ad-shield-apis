@@ -23,6 +23,27 @@ func Query(service, version string) ([]Resp, error) {
 	return makeRequest(body)
 }
 
+func HealthCheck() (bool, error) {
+	return makeHealthCheckRequest()
+}
+
+func makeHealthCheckRequest() (bool, error) {
+	cmd := exec.Command("searchsploit")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == 2 {
+				return true, nil
+			}
+		}
+		return false, err
+	}
+
+	outStr := string(out)
+	resp := parseHealthCheck(outStr)
+	return resp, nil
+}
+
 func makeRequest(body ReqBody) ([]Resp, error) {
 	cmd := exec.Command("searchsploit", "--disable-colour", "-t", fmt.Sprintf("%s", body.Query))
 	out, err := cmd.CombinedOutput()
@@ -49,6 +70,27 @@ func cleanVersionStr(in string) string {
 	in = strings.Join(strings.Fields(in), " ")
 	in = strings.TrimSpace(in)
 	return in
+}
+
+func parseHealthCheck(out string) bool {
+	isFound := false
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		fmt.Println(line, "xxxxx")
+		ln := strings.TrimSpace(line)
+		if ln == "" {
+			continue
+		}
+
+		if strings.Contains(ln, "Usage: ") {
+			isFound = true
+			break
+		}
+
+		isFound = false
+	}
+
+	return isFound
 }
 
 func parseCommandResponse(output string) []Resp {

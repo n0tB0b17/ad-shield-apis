@@ -23,8 +23,10 @@ const (
 	SEARCHSPLOIT_REQ ScanTypeReq = "st"
 	BOTH_REQ         ScanTypeReq = "both"
 
-	PING_REQ ConnectionType = "ping"
-	SCAN_REQ ConnectionType = "scan"
+	PING_REQ            ConnectionType = "ping"
+	SCAN_REQ            ConnectionType = "scan"
+	VS_HEALTH_CHECK_REQ ConnectionType = "vs_health_check"
+	ST_HEALTH_CHECK_REQ ConnectionType = "st_health_check"
 )
 
 type Message struct {
@@ -165,9 +167,45 @@ func (c *WSClient) processMessage(message []byte, a *db.ServiceStore) {
 		c.handleMessage(msg.Payload, a)
 	case PING_REQ:
 		c.sendResponse("success", "PONG request", "Connection is alive, go ahead and scan for vulnerabilities", "")
+	case VS_HEALTH_CHECK_REQ:
+		c.handleVSHealthCheck()
+	case ST_HEALTH_CHECK_REQ:
+		c.handleSTHealthCheck()
 	default:
 		c.sendResponse("failed", "invalid-type", "retry again with proper type", "")
 	}
+}
+
+func (c *WSClient) handleVSHealthCheck() {
+	vs := vulners.GetVulners(3)
+	isRunning, err := vs.HealthCheck()
+	if err != nil {
+		c.sendResponse("failed", "internal error while checking vulners API", err.Error(), "")
+		return
+	}
+
+	if !isRunning {
+		c.sendResponse("failed", "vulners API not running", "make a manual test to check if vulners API is running", "")
+		return
+	}
+
+	c.sendResponse("success", "vulners API is running", "go ahead and make request to scan for vulnerability", "")
+	return
+}
+
+func (c *WSClient) handleSTHealthCheck() {
+	isRunning, err := searchsploit.HealthCheck()
+	if err != nil {
+		c.sendResponse("failed", "internal error while checking for searchsploit", err.Error(), "")
+		return
+	}
+
+	if !isRunning {
+		c.sendResponse("failed", "searchsploit not available", "server don't have searchsploit installed", "")
+		return
+	}
+
+	c.sendResponse("success", "searchsploit is available", "go ahead and make request to scan for vulnerabilities", "")
 }
 
 func (c *WSClient) handleMessage(payload ScanPayload, a *db.ServiceStore) {
