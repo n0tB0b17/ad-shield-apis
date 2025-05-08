@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -52,6 +54,7 @@ type WSClient struct {
 	Meta ClientMetaData
 	Send chan []byte
 	Mu   sync.Mutex
+	wg   sync.WaitGroup
 }
 
 var WsClients = struct {
@@ -62,11 +65,18 @@ var WsClients = struct {
 func (c *WSClient) readPump(ss *db.ServiceStore) {
 	defer func() {
 		fmt.Println("Client disconnected")
+		c.wg.Wait()
+
 		WsClients.Lock()
 		delete(WsClients.m, c.Meta.ID)
 		WsClients.Unlock()
-		c.Conn.Close()
+
 		close(c.Send)
+		if err := c.Conn.Close(); err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+
+			}
+		}
 	}()
 
 	c.Conn.SetReadLimit(MaxMessageSize)
@@ -85,10 +95,13 @@ func (c *WSClient) readPump(ss *db.ServiceStore) {
 				websocket.CloseAbnormalClosure,
 			) {
 				fmt.Printf("unexpected close error: %v \n", err)
+			} else {
+				fmt.Printf("Client: %s read error: %v \n", c.Meta.ID, err)
 			}
 			break
 		}
 
+		c.wg.Add(1)
 		go c.processMessage(msg, ss)
 	}
 }
@@ -144,6 +157,8 @@ func (c *WSClient) writePump() {
 }
 
 func (c *WSClient) processMessage(message []byte, a *db.ServiceStore) {
+	c.wg.Done()
+
 	var msg Message
 	if err := json.Unmarshal(message, &msg); err != nil {
 		fmt.Printf("error while decoding message: %v \n", err)
@@ -314,10 +329,10 @@ func (c *WSClient) sendResponse(status, message, description string, resp interf
 	select {
 	case c.Send <- by:
 	default:
-		WsClients.Lock()
-		delete(WsClients.m, c.Meta.ID)
-		WsClients.Unlock()
-		close(c.Send)
+		// WsClients.Lock()
+		// delete(WsClients.m, c.Meta.ID)
+		// WsClients.Unlock()
+		// close(c.Send)
 		fmt.Printf("Client buffer is full, deleting client: %s \n", c.Meta.IPAddr)
 	}
 }
