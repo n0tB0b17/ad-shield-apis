@@ -1,10 +1,8 @@
 package genreport
 
 import (
-	"bytes"
 	"fmt"
 	"image/color"
-	"os"
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
@@ -47,12 +45,7 @@ func NewReportGenerator(contentType string) ReportGenerator {
 		Pdf:         fpdf.New("P", "mm", "A4", ""),
 		ContentType: contentType,
 		Branding: BrandingInfo{
-			CompanyName:        "companyName",
-			LogoURL:            "./assets/logos/logo-2.png",
-			Addr:               "companyAddr",
-			AdminEmailAddress:  "company@gmail.com",
-			AdminContactNumber: "777777777",
-			Theme:              &DefaultTheme,
+			Theme: &DefaultTheme,
 		},
 	}
 
@@ -66,69 +59,6 @@ func NewReportGenerator(contentType string) ReportGenerator {
 	}
 
 	return nil
-}
-
-func (b *BaseReportGenerator) Generate() ([]byte, error) {
-	b.Pdf.AddPage()
-	b.addHeader()
-	b.addUserInfo()
-
-	// Add generic content
-	b.Pdf.SetFont("Arial", "B", 14)
-	accent := b.Branding.Theme.Accent
-	b.Pdf.SetFillColor(int(accent.R), int(accent.G), int(accent.B))
-	b.Pdf.SetTextColor(255, 255, 255)
-	b.Pdf.CellFormat(190, 10, "Report Content", "", 1, "L", true, 0, "")
-	b.Pdf.SetTextColor(int(b.Branding.Theme.Text.R), int(b.Branding.Theme.Text.G), int(b.Branding.Theme.Text.B))
-	b.Pdf.Ln(5)
-
-	b.Pdf.SetFont("Arial", "", 12)
-	b.Pdf.MultiCell(190, 6, "This report contains generic content. The specific report generator for this content type is not implemented.", "", "L", false)
-
-	b.addFooter()
-
-	// Return PDF as bytes
-	var buf bytes.Buffer
-	err := b.Pdf.Output(&buf)
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return buf.Bytes(), nil
-}
-
-func (b *BaseReportGenerator) SetUser(user interface{}) error {
-	if _, ok := user.(db.Users); !ok {
-		if users, ok := user.([]db.Users); !ok || len(users) == 0 {
-			return fmt.Errorf("error while parsing user struct")
-		}
-	}
-
-	b.User = user
-	return nil
-}
-
-func (b *BaseReportGenerator) SetContent(content interface{}) error {
-	b.Content = content
-	return nil
-}
-
-func (p *BaseReportGenerator) SetBranding(branding BrandingInfo) error {
-	if p.Branding.Theme == nil {
-		p.Branding.Theme = &DefaultTheme
-	}
-
-	p.Branding = branding
-	return nil
-}
-
-func (b *BaseReportGenerator) SaveToFile(file_name string) error {
-	pdf, err := b.Generate()
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(file_name, pdf, 0644)
 }
 
 func (b *BaseReportGenerator) addUserInfo() {

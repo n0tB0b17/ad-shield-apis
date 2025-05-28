@@ -3,6 +3,7 @@ package genreport
 import (
 	"bytes"
 	"fmt"
+	"os"
 
 	"github.com/bob17/adpis/internal/db"
 )
@@ -57,8 +58,23 @@ func (p *PCAPScanReportGenerator) SetContent(content interface{}) error {
 	return nil
 }
 
-func (p *PCAPScanReportGenerator) SetBranding(interface{}) error       { return nil }
-func (p *PCAPScanReportGenerator) SaveToFile(file_string string) error { return nil }
+func (p *PCAPScanReportGenerator) SetBranding(branding interface{}) error {
+	if p.Branding.Theme == nil {
+		p.Branding.Theme = &DefaultTheme
+	}
+
+	p.Branding = branding.(BrandingInfo)
+	return nil
+}
+
+func (p *PCAPScanReportGenerator) SaveToFile(file_string string) error {
+	pdf, err := p.Generate()
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(file_string, pdf, 0644)
+}
 
 func (p *PCAPScanReportGenerator) addSinglePCAPData(pcap db.PCAPMetaData) {
 	pdf := p.Pdf

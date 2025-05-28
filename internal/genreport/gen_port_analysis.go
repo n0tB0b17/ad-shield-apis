@@ -3,6 +3,7 @@ package genreport
 import (
 	"bytes"
 	"fmt"
+	"os"
 
 	"github.com/bob17/adpis/internal/db"
 )
@@ -66,8 +67,23 @@ func (p *PortScanReportGenerator) SetContent(content interface{}) error {
 	return nil
 }
 
-func (p *PortScanReportGenerator) SetBranding(interface{}) error       { return nil }
-func (p *PortScanReportGenerator) SaveToFile(file_string string) error { return nil }
+func (p *PortScanReportGenerator) SetBranding(branding interface{}) error {
+	if p.Branding.Theme == nil {
+		p.Branding.Theme = &DefaultTheme
+	}
+
+	p.Branding = branding.(BrandingInfo)
+	return nil
+}
+
+func (p *PortScanReportGenerator) SaveToFile(file_string string) error {
+	pdf, err := p.Generate()
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(file_string, pdf, 0644)
+}
 
 func (p *PortScanReportGenerator) addSinglePortScanData(scan db.PortScanHistory) {
 	pdf := p.Pdf
