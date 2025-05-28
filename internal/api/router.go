@@ -23,6 +23,7 @@ type APIServer struct {
 	httpServer            *http.Server
 	dbName                string
 	pcapDirectory         string
+	pdfDirectory          string
 	mongoClient           *mongo.Client
 	userStore             *db.UserStore
 	roleStore             *db.RoleStore
@@ -35,11 +36,13 @@ type APIServer struct {
 
 func NewAPIServer(log logger.Logger) *APIServer {
 	pcapStore := os.Getenv("PCAP_STORE")
+	pdfStore := os.Getenv("PDF_STORE")
 	return &APIServer{
 		Port:          4444,
 		logger:        log,
 		dbName:        "",
 		pcapDirectory: pcapStore,
+		pdfDirectory:  pdfStore,
 	}
 }
 

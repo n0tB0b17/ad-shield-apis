@@ -102,8 +102,7 @@ func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	pdfStore := os.Getenv("PDF_STORE")
-	dump_path := filepath.Join(pdfStore, reqBody.FileName)
+	dump_path := filepath.Join(a.pdfDirectory, reqBody.FileName)
 	if err := os.WriteFile(dump_path, gen_byte, 0644); err != nil {
 		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
 			"message":     "unable to dump to path",
