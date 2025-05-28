@@ -25,16 +25,16 @@ func (p *PortScanReportGenerator) Generate() ([]byte, error) {
 	p.Pdf.Ln(5)
 
 	switch docs := p.Content.(type) {
-	case db.PortScanHistory:
-		p.addSinglePortScanData(docs)
-	case []db.PortScanHistory:
+	case *db.PortScanHistory:
+		p.addSinglePortScanData(*docs)
+	case []*db.PortScanHistory:
 		for i, doc := range docs {
 			if i > 0 {
 				p.Pdf.AddPage()
 				p.addHeader()
 			}
 
-			p.addSinglePortScanData(doc)
+			p.addSinglePortScanData(*doc)
 		}
 	default:
 		p.Pdf.SetFont("Arial", "", 12)
@@ -53,11 +53,19 @@ func (p *PortScanReportGenerator) Generate() ([]byte, error) {
 }
 
 func (p *PortScanReportGenerator) SetUser(user interface{}) error {
-	// if _, ok := user.()
+	if _, ok := user.(*db.Users); !ok {
+		return fmt.Errorf("error while parsing user struct")
+	}
 
+	p.User = user
 	return nil
 }
-func (p *PortScanReportGenerator) SetContent(interface{}) error        { return nil }
+
+func (p *PortScanReportGenerator) SetContent(content interface{}) error {
+	p.Content = content
+	return nil
+}
+
 func (p *PortScanReportGenerator) SetBranding(interface{}) error       { return nil }
 func (p *PortScanReportGenerator) SaveToFile(file_string string) error { return nil }
 

@@ -144,6 +144,9 @@ func (a *APIServer) Start() error {
 	clientRoute.HandleFunc("/ad/object/ous", a.handleGetAllOU).Methods(http.MethodPost)
 	clientRoute.HandleFunc("/ad/object/ou", a.handleGetOUByDN).Methods(http.MethodPost)
 
+	// --------------------------REPORT-GENERATOR-------------------------------
+	clientRoute.HandleFunc("/generate/report", a.handleGenerateReport).Methods(http.MethodPost)
+
 	corsOptions := cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS", "DELETE"},

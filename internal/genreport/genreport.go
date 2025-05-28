@@ -1,6 +1,7 @@
 package genreport
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
 	"os"
@@ -18,9 +19,9 @@ type ColorTheme struct {
 }
 
 var DefaultTheme = ColorTheme{
-	Primary:   color.RGBA{R: 0, G: 123, B: 255, A: 255},   // Blue
-	Secondary: color.RGBA{R: 108, G: 117, B: 125, A: 255}, // Gray
-	Text:      color.RGBA{R: 33, G: 37, B: 41, A: 255},    // Dark
+	Primary:   color.RGBA{R: 0, G: 123, B: 255, A: 255},
+	Secondary: color.RGBA{R: 108, G: 117, B: 125, A: 255},
+	Text:      color.RGBA{R: 33, G: 37, B: 41, A: 255},
 	Accent:    color.RGBA{R: 40, G: 167, B: 69, A: 255},
 }
 
@@ -46,15 +47,20 @@ func NewReportGenerator(contentType string) ReportGenerator {
 		Pdf:         fpdf.New("P", "mm", "A4", ""),
 		ContentType: contentType,
 		Branding: BrandingInfo{
-			Theme: &DefaultTheme,
+			CompanyName:        "companyName",
+			LogoURL:            "./assets/logos/logo-2.png",
+			Addr:               "companyAddr",
+			AdminEmailAddress:  "company@gmail.com",
+			AdminContactNumber: "777777777",
+			Theme:              &DefaultTheme,
 		},
 	}
 
 	switch contentType {
 	case "PCAP_REPORT":
-		return &PortScanReportGenerator{BaseReportGenerator: base}
-	case "PORT_REPORT":
 		return &PCAPScanReportGenerator{BaseReportGenerator: base}
+	case "PORT_REPORT":
+		return &PortScanReportGenerator{BaseReportGenerator: base}
 	default:
 		fmt.Println("invalid content_type")
 	}
@@ -63,7 +69,32 @@ func NewReportGenerator(contentType string) ReportGenerator {
 }
 
 func (b *BaseReportGenerator) Generate() ([]byte, error) {
-	return nil, fmt.Errorf("not implemented")
+	b.Pdf.AddPage()
+	b.addHeader()
+	b.addUserInfo()
+
+	// Add generic content
+	b.Pdf.SetFont("Arial", "B", 14)
+	accent := b.Branding.Theme.Accent
+	b.Pdf.SetFillColor(int(accent.R), int(accent.G), int(accent.B))
+	b.Pdf.SetTextColor(255, 255, 255)
+	b.Pdf.CellFormat(190, 10, "Report Content", "", 1, "L", true, 0, "")
+	b.Pdf.SetTextColor(int(b.Branding.Theme.Text.R), int(b.Branding.Theme.Text.G), int(b.Branding.Theme.Text.B))
+	b.Pdf.Ln(5)
+
+	b.Pdf.SetFont("Arial", "", 12)
+	b.Pdf.MultiCell(190, 6, "This report contains generic content. The specific report generator for this content type is not implemented.", "", "L", false)
+
+	b.addFooter()
+
+	// Return PDF as bytes
+	var buf bytes.Buffer
+	err := b.Pdf.Output(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (b *BaseReportGenerator) SetUser(user interface{}) error {
@@ -112,15 +143,15 @@ func (b *BaseReportGenerator) addUserInfo() {
 	pdf.Ln(5)
 	pdf.SetFont("Arial", "", 12)
 
-	if user, ok := b.User.(db.Users); ok {
-		b.addSingleUserInfo(user)
-	} else if users, ok := b.User.([]db.Users); ok && len(users) > 0 {
+	if user, ok := b.User.(*db.Users); ok {
+		b.addSingleUserInfo(*user)
+	} else if users, ok := b.User.([]*db.Users); ok && len(users) > 0 {
 		for i, user := range users {
 			if i > 0 {
 				pdf.Ln(5)
 			}
 
-			b.addSingleUserInfo(user)
+			b.addSingleUserInfo(*user)
 		}
 	}
 

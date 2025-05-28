@@ -17,16 +17,16 @@ func (p *PCAPScanReportGenerator) Generate() ([]byte, error) {
 	p.addUserInfo()
 
 	switch docs := p.Content.(type) {
-	case db.PCAPMetaData:
-		p.addSinglePCAPData(docs)
-	case []db.PCAPMetaData:
+	case *db.PCAPMetaData:
+		p.addSinglePCAPData(*docs)
+	case []*db.PCAPMetaData:
 		for i, doc := range docs {
 			if i > 0 {
 				p.Pdf.AddPage()
 				p.addHeader()
 			}
 
-			p.addSinglePCAPData(doc)
+			p.addSinglePCAPData(*doc)
 		}
 
 	default:
@@ -44,11 +44,19 @@ func (p *PCAPScanReportGenerator) Generate() ([]byte, error) {
 }
 
 func (p *PCAPScanReportGenerator) SetUser(user interface{}) error {
-	// if _, ok := user.()
+	if _, ok := user.(*db.Users); !ok {
+		return fmt.Errorf("error while parsing user struct")
+	}
 
+	p.User = user
 	return nil
 }
-func (p *PCAPScanReportGenerator) SetContent(interface{}) error        { return nil }
+
+func (p *PCAPScanReportGenerator) SetContent(content interface{}) error {
+	p.Content = content
+	return nil
+}
+
 func (p *PCAPScanReportGenerator) SetBranding(interface{}) error       { return nil }
 func (p *PCAPScanReportGenerator) SaveToFile(file_string string) error { return nil }
 
@@ -77,8 +85,6 @@ func (p *PCAPScanReportGenerator) addSinglePCAPData(pcap db.PCAPMetaData) {
 
 	pdf.Ln(10)
 
-	// Add additional PCAP analysis details if available
-	// This would connect to PCAP analysis details in a real implementation
 	pdf.SetFont("Arial", "B", 12)
 	pdf.CellFormat(190, 8, "Analysis Details", "", 1, "L", false, 0, "")
 	pdf.SetFont("Arial", "", 10)
