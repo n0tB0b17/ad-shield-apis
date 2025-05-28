@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image/color"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,20 +13,20 @@ import (
 	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/genreport"
 	"github.com/bob17/adpis/internal/models"
+	"github.com/bob17/adpis/pkg/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"message":     "",
-			"description": "",
+			"message":     "Invalid method",
+			"description": "Try method post to generate report",
 			"status":      "failed",
 		})
 		return
 	}
 
-	// decode body
 	var reqBody models.RequestReportGenerate
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
@@ -36,7 +37,6 @@ func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// get user
 	user, err := a.userStore.GetUserByID(r.Context(), reqBody.UserId)
 	if err != nil {
 		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
@@ -57,17 +57,24 @@ func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	client := r.Context().Value(utils.CLIENT_KEY).(*db.ADClient)
+	pr, pg, pb, _ := utils.HexToRGB(client.PrimaryColorHex)
+	sr, sg, sb, _ := utils.HexToRGB(client.SecondaryColorHex)
 	regen := genreport.NewReportGenerator(reqBody.ContentType)
-	// regen.SetBranding()
-	err = regen.SetUser(user)
-	if err != nil {
-		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
-			"message":     "user not found",
-			"description": err.Error(),
-			"status":      "failed",
-		})
-		return
+	theme := &genreport.ColorTheme{
+		Primary:   color.RGBA{R: uint8(pr), B: uint8(pb), G: uint8(pg)},
+		Secondary: color.RGBA{R: uint8(sr), B: uint8(sb), G: uint8(sg)},
 	}
+
+	brandingInfo := genreport.BrandingInfo{
+		CompanyName:       client.ClientName,
+		Addr:              client.Headquarter,
+		AdminEmailAddress: client.AdminEmail,
+		Theme:             theme,
+	}
+
+	_ = regen.SetBranding(brandingInfo)
+	_ = regen.SetUser(user)
 
 	if reqBody.ContentType == "PORT_REPORT" {
 		content = content.(*db.PortScanHistory)
@@ -95,7 +102,6 @@ func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// todo:> handle if env not available
 	pdfStore := os.Getenv("PDF_STORE")
 	dump_path := filepath.Join(pdfStore, reqBody.FileName)
 	if err := os.WriteFile(dump_path, gen_byte, 0644); err != nil {

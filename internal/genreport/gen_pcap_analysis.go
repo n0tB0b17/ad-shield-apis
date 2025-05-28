@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/bob17/adpis/internal/db"
 )
@@ -34,6 +35,7 @@ func (p *PCAPScanReportGenerator) Generate() ([]byte, error) {
 		p.Pdf.SetFont("Arial", "", 12)
 		p.Pdf.MultiCell(190, 6, "Invalid pcap anylsis type", "", "L", false)
 	}
+
 	p.addFooter()
 
 	var buf bytes.Buffer
@@ -79,12 +81,10 @@ func (p *PCAPScanReportGenerator) SaveToFile(file_string string) error {
 func (p *PCAPScanReportGenerator) addSinglePCAPData(pcap db.PCAPMetaData) {
 	pdf := p.Pdf
 
-	// PCAP metadata
 	pdf.SetFont("Arial", "B", 12)
 	pdf.CellFormat(190, 8, "File Information", "", 1, "L", false, 0, "")
 	pdf.SetFont("Arial", "", 10)
 
-	// Add PCAP details
 	p.addTableRow("Original Filename", pcap.OriginalFileName)
 	p.addTableRow("Stored Filename", pcap.StoredFileName)
 	p.addTableRow("Storage Path", pcap.StoragePath)
@@ -107,7 +107,14 @@ func (p *PCAPScanReportGenerator) addSinglePCAPData(pcap db.PCAPMetaData) {
 	pdf.MultiCell(190, 6, "Detailed packet analysis would be shown here. This can include traffic patterns, protocol distributions, detected anomalies, etc.", "", "L", false)
 }
 
-// formatFileSize formats file size in bytes to a human-readable string
+func formatDuration(d time.Duration) string {
+	if d == 0 {
+		return "N/A"
+	}
+
+	return d.Round(time.Millisecond).String()
+}
+
 func formatFileSize(sizeInBytes int64) string {
 	const (
 		KB = 1024

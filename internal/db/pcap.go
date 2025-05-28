@@ -12,32 +12,24 @@ import (
 )
 
 type PCAPAnalysisResult struct {
-	// General statistics
-	TotalPCAPs        int64          `json:"total_pcaps"`
-	TotalStorageBytes int64          `json:"total_storage_bytes"`
-	AverageFileSize   int64          `json:"average_file_size"`
-	LargestFile       *PCAPMetaData  `json:"largest_file"`
-	SmallestFile      *PCAPMetaData  `json:"smallest_file"`
-	OldestPCAP        *PCAPMetaData  `json:"oldest_pcap"`
-	NewestPCAP        *PCAPMetaData  `json:"newest_pcap"`
-	RecentlyAnalyzed  []PCAPMetaData `json:"recently_analyzed"`
-
-	// File type statistics
-	ContentTypeBreakdown []ContentTypeCount `json:"content_type_breakdown"`
-
-	// Temporal statistics
-	UploadsByHour       []HourlyUploadCount  `json:"uploads_by_hour"`
-	UploadsByDay        []DailyUploadCount   `json:"uploads_by_day"`
-	UploadsByMonth      []MonthlyUploadCount `json:"uploads_by_month"`
-	UploadActivityTrend []UploadTrendPoint   `json:"upload_activity_trend"`
-
-	// Analysis statistics
-	AnalyzedCount      int64         `json:"analyzed_count"`
-	UnanalyzedCount    int64         `json:"unanalyzed_count"`
-	AvgAnalysisLatency time.Duration `json:"avg_analysis_latency"`
+	TotalPCAPs           int64                `json:"total_pcaps"`
+	TotalStorageBytes    int64                `json:"total_storage_bytes"`
+	AverageFileSize      int64                `json:"average_file_size"`
+	LargestFile          *PCAPMetaData        `json:"largest_file"`
+	SmallestFile         *PCAPMetaData        `json:"smallest_file"`
+	OldestPCAP           *PCAPMetaData        `json:"oldest_pcap"`
+	NewestPCAP           *PCAPMetaData        `json:"newest_pcap"`
+	RecentlyAnalyzed     []PCAPMetaData       `json:"recently_analyzed"`
+	ContentTypeBreakdown []ContentTypeCount   `json:"content_type_breakdown"`
+	UploadsByHour        []HourlyUploadCount  `json:"uploads_by_hour"`
+	UploadsByDay         []DailyUploadCount   `json:"uploads_by_day"`
+	UploadsByMonth       []MonthlyUploadCount `json:"uploads_by_month"`
+	UploadActivityTrend  []UploadTrendPoint   `json:"upload_activity_trend"`
+	AnalyzedCount        int64                `json:"analyzed_count"`
+	UnanalyzedCount      int64                `json:"unanalyzed_count"`
+	AvgAnalysisLatency   time.Duration        `json:"avg_analysis_latency"`
 }
 
-// Supporting structs for analysis results
 type ContentTypeCount struct {
 	ContentType string `json:"content_type"`
 	Count       int    `json:"count"`
@@ -166,8 +158,8 @@ func (ps *PCAPStore) DeletePCAPByID(ctx context.Context, id bson.ObjectID) error
 	return nil
 }
 
+// for super admin
 func (ps *PCAPStore) GenerateAnalysis(ctx context.Context) (*PCAPAnalysisResult, error) {
-	// Get all PCAP metadata
 	pcaps, err := ps.GetAllPCAP(ctx, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PCAP metadata: %v", err)
@@ -187,18 +179,15 @@ func (ps *PCAPStore) GenerateAnalysis(ctx context.Context) (*PCAPAnalysisResult,
 		RecentlyAnalyzed:     make([]PCAPMetaData, 0),
 	}
 
-	// Initialize hourly upload counts
 	for i := 0; i < 24; i++ {
 		result.UploadsByHour[i] = HourlyUploadCount{Hour: i, Count: 0}
 	}
 
-	// Initialize day of week counts
 	daysOfWeek := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
 	for _, day := range daysOfWeek {
 		result.UploadsByDay = append(result.UploadsByDay, DailyUploadCount{Day: day, Count: 0})
 	}
 
-	// Data structures for tracking statistics
 	contentTypeCounts := make(map[string]int)
 	var totalStorageBytes int64 = 0
 	var largestFile, smallestFile *PCAPMetaData
