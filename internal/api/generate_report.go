@@ -8,12 +8,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/genreport"
 	"github.com/bob17/adpis/internal/models"
 	"github.com/bob17/adpis/pkg/utils"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -36,6 +39,17 @@ func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request)
 		})
 		return
 	}
+
+	reportFilename := strings.TrimSpace(reqBody.FileName)
+	if reportFilename == "" {
+		reportFilename = "report.pdf"
+	}
+
+	if !strings.HasSuffix(strings.ToLower(reportFilename), ".pdf") {
+		reportFilename += ".pdf"
+	}
+
+	filepath.Base(reportFilename)
 
 	user, err := a.userStore.GetUserByID(r.Context(), reqBody.UserId)
 	if err != nil {
@@ -102,22 +116,54 @@ func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	dump_path := filepath.Join(a.pdfDirectory, reqBody.FileName)
-	if err := os.WriteFile(dump_path, gen_byte, 0644); err != nil {
+	randomId := uuid.New().String()
+	fileName := fmt.Sprintf("%s_%s", randomId, reportFilename)
+	fullPath := filepath.Join(a.pdfDirectory, fileName)
+
+	if err := os.WriteFile(fullPath, gen_byte, 0644); err != nil {
 		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
-			"message":     "unable to dump to path",
+			"message":     "Failed to save PDF",
 			"description": err.Error(),
 			"status":      "failed",
 		})
-
 		return
 	}
 
 	responseWithJSON(w, http.StatusOK, map[string]interface{}{
-		"message":     "report generator",
-		"description": "report will be generated soon",
-		"status":      "success",
+		"message":      "PDF generated successfully",
+		"status":       "success",
+		"download_url": fmt.Sprintf("/%s/report/download/%s", client.ID.Hex(), fileName),
+		"filename":     reportFilename,
+		"size":         len(gen_byte),
 	})
+}
+
+func (a *APIServer) handleDownloadReport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		responseWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"message":     "invalid method",
+			"description": "to download generated file, method should be get",
+			"status":      "failed",
+		})
+		return
+	}
+
+	vars := mux.Vars(r)
+	fileName := vars["fileName"]
+	fullPath := filepath.Join(a.pdfDirectory, fileName)
+
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		responseWithJSON(w, http.StatusNotFound, map[string]interface{}{
+			"message":     "file not found",
+			"description": err.Error(),
+			"status":      "failed",
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
+	http.ServeFile(w, r, fullPath)
 }
 
 func (a *APIServer) validateContentType(t string, contentId bson.ObjectID) interface{} {

@@ -148,7 +148,8 @@ func (a *APIServer) Start() error {
 	clientRoute.HandleFunc("/ad/object/ou", a.handleGetOUByDN).Methods(http.MethodPost)
 
 	// --------------------------REPORT-GENERATOR-------------------------------
-	protectedRoute.HandleFunc("/generate/report", a.handleGenerateReport).Methods(http.MethodPost)
+	protectedRoute.HandleFunc("/report/generate", a.handleGenerateReport).Methods(http.MethodPost)
+	clientRoute.HandleFunc("/report/download/{fileName}", a.handleDownloadReport).Methods(http.MethodGet)
 
 	corsOptions := cors.Options{
 		AllowedOrigins: []string{"*"},
