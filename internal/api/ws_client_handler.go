@@ -205,7 +205,6 @@ func (c *WSClient) handleVSHealthCheck() {
 	}
 
 	c.sendResponse("success", "vulners API is running", "go ahead and make request to scan for vulnerability", "")
-	return
 }
 
 func (c *WSClient) handleSTHealthCheck() {

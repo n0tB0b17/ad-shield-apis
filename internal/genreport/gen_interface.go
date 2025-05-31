@@ -5,5 +5,6 @@ type ReportGenerator interface {
 	SetUser(interface{}) error
 	SetContent(interface{}) error
 	SetBranding(interface{}) error
+	SetAnalysis(map[string]interface{}) error
 	SaveToFile(file_path string) error
 }

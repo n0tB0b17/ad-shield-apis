@@ -9,12 +9,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/bob17/adpis/internal/analysis/application"
+	"github.com/bob17/adpis/internal/analysis/network"
+	"github.com/bob17/adpis/internal/analysis/transport"
 	"github.com/bob17/adpis/internal/db"
 	"github.com/bob17/adpis/internal/genreport"
 	"github.com/bob17/adpis/internal/models"
+	"github.com/bob17/adpis/internal/pcap"
+	"github.com/bob17/adpis/internal/vulners"
 	"github.com/bob17/adpis/pkg/utils"
+	"github.com/google/gopacket"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -92,8 +99,19 @@ func (a *APIServer) handleGenerateReport(w http.ResponseWriter, r *http.Request)
 
 	if reqBody.ContentType == "PORT_REPORT" {
 		content = content.(*db.PortScanHistory)
+		portScanHistory := content.(*db.PortScanHistory)
+
+		portAnalysis := make(map[string]interface{})
+		resp, _ := a.getVulnersPortScanResult(portScanHistory.ScanDetail)
+
+		portAnalysis["vulnersAnalysis"] = resp
+		regen.SetAnalysis(portAnalysis)
 	} else if reqBody.ContentType == "PCAP_REPORT" {
 		content = content.(*db.PCAPMetaData)
+
+		pcapMetaData := content.(*db.PCAPMetaData)
+		analysis := a.getPCAPAnalysisResult(pcapMetaData.StoragePath)
+		regen.SetAnalysis(analysis)
 	}
 
 	if err := regen.SetContent(content); err != nil {
@@ -179,4 +197,99 @@ func (a *APIServer) validateContentType(t string, contentId bson.ObjectID) inter
 	}
 
 	return content
+}
+
+func (a *APIServer) getPCAPAnalysisResult(storagePath string) map[string]interface{} {
+	numOfWorker := 10
+	pcapReader := pcap.NewPCAPReader(storagePath)
+	networkAnalysis := network.NewNetworkAnalyzer()
+	transportAnalysis := transport.NewTransportAnalyzer()
+	applicationAnalysis := application.NewApplicationLayerAnalyzer()
+	packetChan := make(chan gopacket.Packet, 100)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go pcapReader.ReadPackets(packetChan, &wg)
+	for i := 0; i < numOfWorker; i++ {
+		wg.Add(3)
+		networkAnalysis.ProcessPackets(packetChan, &wg)
+		transportAnalysis.ProcessPackets(packetChan, &wg)
+		applicationAnalysis.ProcessPackets(packetChan, &wg)
+	}
+	wg.Wait()
+
+	networkResult := networkAnalysis.GetResult()
+	networkStats := network.NetworkStats{
+		PacketCount:       networkResult["TotalPacket"].(int),
+		FragmentedPackets: networkResult["FragmentedPackets"].(int),
+		IpStats:           networkResult["IPStats"].(map[string]int),
+		ReassembledFlows:  networkResult["ReassembledFlows"].(int),
+		TTLStats:          networkResult["TTLStats"].(map[uint8]int),
+		ProtocolDist:      networkResult["ProtocolDist"].(map[string]int),
+	}
+
+	transportResult := transportAnalysis.GetResult()
+	transportStats := transport.TransportStats{
+		TCPPacketCount:  transportResult["TCPPacketCount"].(int),
+		UDPPacketCount:  transportResult["UDPPacketCount"].(int),
+		PortStats:       transportResult["PortStats"].(map[int]int),
+		TCPConnection:   transportResult["TCPConnections"].(int),
+		Retransmission:  transportResult["Retransmissions"].(int),
+		InvalidTCPFlags: transportResult["InvalidTCPFlags"].(int),
+		UDPFloodPorts:   transportResult["UDPFloodPorts"].(map[int]int),
+		StreamData:      transportResult["StreamData"].(map[string]int),
+	}
+
+	applicationResult := applicationAnalysis.GetResult()
+	applicationStats := application.ApplicationStats{
+		ProtocolStats: make(map[string]*application.ApplicationProtocolStats),
+		TLSStats:      application.TLSMeta{},
+	}
+
+	if protoStats, ok := applicationResult["ProtocolStats"].(map[string]interface{}); ok {
+		for proto, stats := range protoStats {
+			protoData := stats.(map[string]interface{})
+			appProtoStats := &application.ApplicationProtocolStats{
+				PacketCount:   protoData["PacketCount"].(int),
+				RequestCount:  protoData["RequestCount"].(int),
+				ResponseCount: protoData["ResponseCount"].(int),
+				Domains:       protoData["Domains"].(map[string]int),
+				PayloadSize:   protoData["PayloadSizes"].(map[string]int),
+				Anomalies:     protoData["Anomalies"].(map[string]int),
+			}
+			applicationStats.ProtocolStats[proto] = appProtoStats
+		}
+	}
+
+	if tlsStats, ok := applicationResult["TLSStats"].(map[string]interface{}); ok {
+		tlsMeta := application.TLSMeta{
+			CipherSuites: tlsStats["CipherSuites"].(map[string]int),
+			Versions:     tlsStats["Versions"].(map[string]int),
+			Certificates: tlsStats["Certificates"].(int),
+			SNI:          tlsStats["SNI"].(map[string]int),
+		}
+		applicationStats.TLSStats = tlsMeta
+	}
+
+	return map[string]interface{}{
+		"networkAnalysis":     networkStats,
+		"transportAnalysis":   transportStats,
+		"applicationAnalysis": applicationStats,
+	}
+}
+
+func (a *APIServer) getVulnersPortScanResult(scanned_port []db.ServiceResult) ([]*vulners.Resp, error) {
+	vul_scanner := vulners.GetVulners(3)
+
+	resp_holder := make([]*vulners.Resp, len(scanned_port))
+	for i := 0; i < len(scanned_port); i++ {
+		resp := scanned_port[i]
+		vuln_resp, err := vul_scanner.Query(resp.Service, resp.Version)
+		fmt.Println(vuln_resp, "xxxxxxx")
+		if err == nil {
+			resp_holder = append(resp_holder, vuln_resp)
+		}
+	}
+
+	return resp_holder, nil
 }

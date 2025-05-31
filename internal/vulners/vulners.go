@@ -39,7 +39,6 @@ func (v *VulnersBase) HealthCheck() (bool, error) {
 		Timeout: v.Timeout,
 	}
 
-	// var resp interface{}
 	var lastError error
 	for i := 1; i <= v.Retries; i++ {
 		req, err := http.NewRequest("GET", v.URL, nil)
@@ -59,7 +58,6 @@ func (v *VulnersBase) HealthCheck() (bool, error) {
 			continue
 		}
 
-		fmt.Println(apiResp.StatusCode)
 		if apiResp.StatusCode != http.StatusOK {
 			lastError = fmt.Errorf("invalid status code got")
 			time.Sleep(time.Duration(i) * time.Second)
@@ -75,12 +73,12 @@ func (v *VulnersBase) HealthCheck() (bool, error) {
 func (v *VulnersBase) Query(service, version string) (*Resp, error) {
 	body := ReqBody{
 		Query: fmt.Sprintf("%s %s", service, version),
-		Key:   "",
+		Key:   v.Key,
 	}
 
 	resp, err := v.makeRequest(body)
 	if err != nil {
-		fmt.Println("error while making request to vulners API")
+		fmt.Println("error while making request to vulners API: ", err.Error())
 		return nil, err
 	}
 
