@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/bob17/adpis/internal/analysis/application"
@@ -21,7 +22,7 @@ type PCAPScanReportGenerator struct {
 
 func (p *PCAPScanReportGenerator) Generate() ([]byte, error) {
 	p.Pdf.AddPage()
-	p.addHeader()
+	p.Pdf.Ln(5)
 	p.addUserInfo()
 
 	switch docs := p.Content.(type) {
@@ -143,13 +144,15 @@ func (p *PCAPScanReportGenerator) addSinglePCAPData(pcap db.PCAPMetaData) {
 	pdf.SetFont("Arial", "B", 12)
 	pdf.CellFormat(190, 8, "Analysis Details", "", 1, "L", false, 0, "")
 	pdf.SetFont("Arial", "", 10)
-	pdf.MultiCell(190, 6, "Detailed packet analysis would be shown here. This can include traffic patterns, protocol distributions, detected anomalies, etc.", "", "L", false)
+	pdf.MultiCell(190, 6, "Detailed packet analysis would be shown here. This can include traffic patterns, protocol distributions", "", "L", false)
 }
 
+// addPCAPAnalysisData orchestrates the rendering of network, transport, and application stats.
 func (p *PCAPScanReportGenerator) addPCAPAnalysisData() {
 	pdf := p.Pdf
-	pdf.Ln(5)
+	pdf.Ln(5) // Add some space before the analysis section starts
 
+	// Check if any analysis data is available
 	if p.NetworkAnalysisContent == nil && p.TransportAnalysisContent == nil && p.ApplicationAnalysisContent == nil {
 		p.addTitle("Detailed Analysis Results")
 		pdf.SetFont("Arial", "I", 10)
@@ -195,6 +198,7 @@ func (p *PCAPScanReportGenerator) addPCAPAnalysisData() {
 	}
 }
 
+// addNetworkStats renders the details for NetworkStats using the new compact block helper.
 func (p *PCAPScanReportGenerator) addNetworkStats(stats *network.NetworkStats) {
 	pdf := p.Pdf
 	pdf.SetFont("Arial", "", 10)
@@ -203,44 +207,44 @@ func (p *PCAPScanReportGenerator) addNetworkStats(stats *network.NetworkStats) {
 	p.addTableRow("Fragmented Packets", strconv.Itoa(stats.FragmentedPackets))
 	p.addTableRow("Reassembled Flows", strconv.Itoa(stats.ReassembledFlows))
 
-	if len(stats.IpStats) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "IP Statistics (IP -> Packets)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for ip, count := range stats.IpStats {
-			p.addTableRow(ip, strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("IP Statistics", "No data")
+	// IP Statistics
+	ipStatsItems := make([]string, 0, len(stats.IpStats))
+	keys := make([]string, 0, len(stats.IpStats))
+	for k := range stats.IpStats {
+		keys = append(keys, k)
 	}
+	sort.Strings(keys) // Sort IP addresses for consistent output
+	for _, k := range keys {
+		ipStatsItems = append(ipStatsItems, fmt.Sprintf("%s: %d", k, stats.IpStats[k]))
+	}
+	p.addCompactInfoBlock("IP Statistics (IP: Packets)", ipStatsItems)
 
-	if len(stats.TTLStats) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "TTL Statistics (TTL -> Count)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for ttl, count := range stats.TTLStats {
-			p.addTableRow(strconv.Itoa(int(ttl)), strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("TTL Statistics", "No data")
+	// TTL Statistics
+	ttlStatsItems := make([]string, 0, len(stats.TTLStats))
+	ttlKeys := make([]int, 0, len(stats.TTLStats))
+	for k := range stats.TTLStats {
+		ttlKeys = append(ttlKeys, int(k)) // Convert uint8 to int for sorting
 	}
+	sort.Ints(ttlKeys) // Sort TTL values
+	for _, k := range ttlKeys {
+		ttlStatsItems = append(ttlStatsItems, fmt.Sprintf("%d: %d", k, stats.TTLStats[uint8(k)]))
+	}
+	p.addCompactInfoBlock("TTL Statistics (TTL: Count)", ttlStatsItems)
 
-	if len(stats.ProtocolDist) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "Protocol Distribution (Protocol -> Count)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for proto, count := range stats.ProtocolDist {
-			p.addTableRow(proto, strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("Protocol Distribution", "No data")
+	// Protocol Distribution
+	protoDistItems := make([]string, 0, len(stats.ProtocolDist))
+	protoKeys := make([]string, 0, len(stats.ProtocolDist))
+	for k := range stats.ProtocolDist {
+		protoKeys = append(protoKeys, k)
 	}
+	sort.Strings(protoKeys) // Sort protocol names
+	for _, k := range protoKeys {
+		protoDistItems = append(protoDistItems, fmt.Sprintf("%s: %d", k, stats.ProtocolDist[k]))
+	}
+	p.addCompactInfoBlock("Protocol Distribution (Protocol: Count)", protoDistItems)
 }
 
-// addTransportStats renders the details for TransportStats.
+// addTransportStats renders the details for TransportStats using the new compact block helper.
 func (p *PCAPScanReportGenerator) addTransportStats(stats *transport.TransportStats) {
 	pdf := p.Pdf
 	pdf.SetFont("Arial", "", 10)
@@ -251,107 +255,140 @@ func (p *PCAPScanReportGenerator) addTransportStats(stats *transport.TransportSt
 	p.addTableRow("Retransmissions", strconv.Itoa(stats.Retransmission))
 	p.addTableRow("Invalid TCP Flags", strconv.Itoa(stats.InvalidTCPFlags))
 
-	if len(stats.PortStats) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "Port Statistics (Port -> Packets)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for port, count := range stats.PortStats {
-			p.addTableRow(strconv.Itoa(port), strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("Port Statistics", "No data")
+	// Port Statistics
+	portStatsItems := make([]string, 0, len(stats.PortStats))
+	portKeys := make([]int, 0, len(stats.PortStats))
+	for k := range stats.PortStats {
+		portKeys = append(portKeys, k)
 	}
-
-	if len(stats.UDPFloodPorts) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "UDP Flood Ports (Port -> Count)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for port, count := range stats.UDPFloodPorts {
-			p.addTableRow(strconv.Itoa(port), strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("UDP Flood Ports", "No data")
+	sort.Ints(portKeys) // Sort port numbers
+	for _, k := range portKeys {
+		portStatsItems = append(portStatsItems, fmt.Sprintf("%d: %d", k, stats.PortStats[k]))
 	}
+	p.addCompactInfoBlock("Port Statistics (Port: Packets)", portStatsItems)
 
-	if len(stats.StreamData) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "Stream Data (Flow Key -> Packet Count)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for flowKey, count := range stats.StreamData {
-			p.addTableRow(flowKey, strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("Stream Data", "No data")
+	// UDP Flood Ports
+	udpFloodPortsItems := make([]string, 0, len(stats.UDPFloodPorts))
+	udpFloodKeys := make([]int, 0, len(stats.UDPFloodPorts))
+	for k := range stats.UDPFloodPorts {
+		udpFloodKeys = append(udpFloodKeys, k)
 	}
+	sort.Ints(udpFloodKeys) // Sort UDP flood port numbers
+	for _, k := range udpFloodKeys {
+		udpFloodPortsItems = append(udpFloodPortsItems, fmt.Sprintf("%d: %d", k, stats.UDPFloodPorts[k]))
+	}
+	p.addCompactInfoBlock("UDP Flood Ports (Port: Count)", udpFloodPortsItems)
 
+	// Stream Data (Flow Key -> Count)
+	streamDataItems := make([]string, 0, len(stats.StreamData))
+	streamKeys := make([]string, 0, len(stats.StreamData))
+	for k := range stats.StreamData {
+		streamKeys = append(streamKeys, k)
+	}
+	sort.Strings(streamKeys) // Sort flow keys
+	for _, k := range streamKeys {
+		streamDataItems = append(streamDataItems, fmt.Sprintf("%s: %d", k, stats.StreamData[k]))
+	}
+	p.addCompactInfoBlock("Stream Data (Flow Key: Packet Count)", streamDataItems)
+
+	// Reassembled TCP Streams (Flow Key -> Status) - This one is better as a small table due to structured data
 	if len(stats.NewStreamData) > 0 {
 		pdf.Ln(2)
 		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "Reassembled TCP Streams (Flow Key -> Status)", "B", 1, "L", false, 0, "")
+		pdf.CellFormat(190, 7, "Reassembled TCP Streams", "B", 1, "L", false, 0, "")
 		pdf.SetFont("Arial", "", 10)
-		for flowKey, stream := range stats.NewStreamData {
+
+		// Sort NewStreamData keys for consistent output
+		streamKeys := make([]string, 0, len(stats.NewStreamData))
+		for k := range stats.NewStreamData {
+			streamKeys = append(streamKeys, k)
+		}
+		sort.Strings(streamKeys)
+
+		// Create a temporary table for reassembled streams
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(60, 8, "Flow Key", "1", 0, "L", false, 0, "")
+		pdf.CellFormat(130, 8, "Status (Segments, Bytes)", "1", 1, "L", false, 0, "")
+		pdf.SetFont("Arial", "", 10)
+
+		for _, flowKey := range streamKeys {
+			stream := stats.NewStreamData[flowKey]
 			status := "Incomplete"
 			if stream.Complete {
 				status = "Complete"
 			}
-			p.addTableRow(flowKey, fmt.Sprintf("%s (%d segments, %d bytes)", status, len(stream.Segments), stream.Reassembled.Len()))
+			p.Pdf.CellFormat(60, 8, flowKey, "1", 0, "L", false, 0, "")
+			p.Pdf.CellFormat(130, 8, fmt.Sprintf("%s (%d segments, %s)", status, len(stream.Segments), formatFileSize(int64(stream.Reassembled.Len()))), "1", 1, "L", false, 0, "")
 		}
-	} else {
-		p.addTableRow("Reassembled TCP Streams", "No data")
 	}
 }
 
-// addApplicationStats renders the details for ApplicationStats.
+// addApplicationStats renders the details for ApplicationStats using the new compact block helper.
 func (p *PCAPScanReportGenerator) addApplicationStats(stats *application.ApplicationStats) {
 	pdf := p.Pdf
 	pdf.SetFont("Arial", "", 10)
 
 	if len(stats.ProtocolStats) > 0 {
+		p.addCompactInfoBlock("Application Protocol Statistics Overview", []string{"See detailed breakdown below."}) // Just a lead-in
 		pdf.Ln(2)
 		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "Application Protocol Statistics", "B", 1, "L", false, 0, "")
+		pdf.CellFormat(190, 7, "Detailed Application Protocol Breakdown", "B", 1, "L", false, 0, "")
 		pdf.SetFont("Arial", "", 10)
-		for proto, protoStats := range stats.ProtocolStats {
+
+		// Sort protocol names for consistent output
+		protoNames := make([]string, 0, len(stats.ProtocolStats))
+		for name := range stats.ProtocolStats {
+			protoNames = append(protoNames, name)
+		}
+		sort.Strings(protoNames)
+
+		for _, proto := range protoNames {
+			protoStats := stats.ProtocolStats[proto]
 			pdf.Ln(2)
 			pdf.SetFont("Arial", "BU", 10) // Underline for sub-protocol
 			pdf.CellFormat(190, 7, fmt.Sprintf("Protocol: %s", proto), "", 1, "L", false, 0, "")
 			pdf.SetFont("Arial", "", 10)
+
+			// Simple table for counts
 			p.addTableRow("  Packet Count", strconv.Itoa(protoStats.PacketCount))
 			p.addTableRow("  Request Count", strconv.Itoa(protoStats.RequestCount))
 			p.addTableRow("  Response Count", strconv.Itoa(protoStats.ResponseCount))
 
-			if len(protoStats.Domains) > 0 {
-				pdf.Ln(1)
-				pdf.SetFont("Arial", "B", 10)
-				pdf.CellFormat(190, 7, "  Domains (Domain -> Count)", "B", 1, "L", false, 0, "")
-				pdf.SetFont("Arial", "", 10)
-				for domain, count := range protoStats.Domains {
-					p.addTableRow("    "+domain, strconv.Itoa(count))
-				}
+			// Domains
+			domainItems := make([]string, 0, len(protoStats.Domains))
+			domainKeys := make([]string, 0, len(protoStats.Domains))
+			for k := range protoStats.Domains {
+				domainKeys = append(domainKeys, k)
 			}
+			sort.Strings(domainKeys)
+			for _, k := range domainKeys {
+				domainItems = append(domainItems, fmt.Sprintf("%s: %d", k, protoStats.Domains[k]))
+			}
+			p.addCompactInfoBlock("  Domains (Domain: Count)", domainItems)
 
-			if len(protoStats.PayloadSize) > 0 {
-				pdf.Ln(1)
-				pdf.SetFont("Arial", "B", 10)
-				pdf.CellFormat(190, 7, "  Payload Sizes (Type -> Bytes)", "B", 1, "L", false, 0, "")
-				pdf.SetFont("Arial", "", 10)
-				for pType, size := range protoStats.PayloadSize {
-					p.addTableRow("    "+pType, formatFileSize(int64(size)))
-				}
+			// Payload Sizes
+			payloadItems := make([]string, 0, len(protoStats.PayloadSize))
+			payloadKeys := make([]string, 0, len(protoStats.PayloadSize))
+			for k := range protoStats.PayloadSize {
+				payloadKeys = append(payloadKeys, k)
 			}
+			sort.Strings(payloadKeys)
+			for _, k := range payloadKeys {
+				payloadItems = append(payloadItems, fmt.Sprintf("%s: %s", k, formatFileSize(int64(protoStats.PayloadSize[k]))))
+			}
+			p.addCompactInfoBlock("  Payload Sizes (Type: Bytes)", payloadItems)
 
-			if len(protoStats.Anomalies) > 0 {
-				pdf.Ln(1)
-				pdf.SetFont("Arial", "B", 10)
-				pdf.CellFormat(190, 7, "  Anomalies (Anomaly -> Count)", "B", 1, "L", false, 0, "")
-				pdf.SetFont("Arial", "", 10)
-				for anomaly, count := range protoStats.Anomalies {
-					p.addTableRow("    "+anomaly, strconv.Itoa(count))
-				}
+			// Anomalies
+			anomalyItems := make([]string, 0, len(protoStats.Anomalies))
+			anomalyKeys := make([]string, 0, len(protoStats.Anomalies))
+			for k := range protoStats.Anomalies {
+				anomalyKeys = append(anomalyKeys, k)
 			}
+			sort.Strings(anomalyKeys)
+			for _, k := range anomalyKeys {
+				anomalyItems = append(anomalyItems, fmt.Sprintf("%s: %d", k, protoStats.Anomalies[k]))
+			}
+			p.addCompactInfoBlock("  Anomalies (Anomaly: Count)", anomalyItems)
 		}
 	} else {
 		p.addTableRow("Application Protocol Statistics", "No data")
@@ -364,41 +401,41 @@ func (p *PCAPScanReportGenerator) addApplicationStats(stats *application.Applica
 	pdf.SetFont("Arial", "", 10)
 	p.addTableRow("Certificates Detected", strconv.Itoa(stats.TLSStats.Certificates))
 
-	if len(stats.TLSStats.CipherSuites) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "Cipher Suites (Suite -> Count)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for suite, count := range stats.TLSStats.CipherSuites {
-			p.addTableRow(suite, strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("Cipher Suites", "No data")
+	// Cipher Suites
+	cipherSuiteItems := make([]string, 0, len(stats.TLSStats.CipherSuites))
+	cipherSuiteKeys := make([]string, 0, len(stats.TLSStats.CipherSuites))
+	for k := range stats.TLSStats.CipherSuites {
+		cipherSuiteKeys = append(cipherSuiteKeys, k)
 	}
+	sort.Strings(cipherSuiteKeys) // Sort cipher suite names
+	for _, k := range cipherSuiteKeys {
+		cipherSuiteItems = append(cipherSuiteItems, fmt.Sprintf("%s: %d", k, stats.TLSStats.CipherSuites[k]))
+	}
+	p.addCompactInfoBlock("Cipher Suites (Suite: Count)", cipherSuiteItems)
 
-	if len(stats.TLSStats.Versions) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "TLS Versions (Version -> Count)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for version, count := range stats.TLSStats.Versions {
-			p.addTableRow(version, strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("TLS Versions", "No data")
+	// TLS Versions
+	versionItems := make([]string, 0, len(stats.TLSStats.Versions))
+	versionKeys := make([]string, 0, len(stats.TLSStats.Versions))
+	for k := range stats.TLSStats.Versions {
+		versionKeys = append(versionKeys, k)
 	}
+	sort.Strings(versionKeys) // Sort TLS versions
+	for _, k := range versionKeys {
+		versionItems = append(versionItems, fmt.Sprintf("%s: %d", k, stats.TLSStats.Versions[k]))
+	}
+	p.addCompactInfoBlock("TLS Versions (Version: Count)", versionItems)
 
-	if len(stats.TLSStats.SNI) > 0 {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(190, 7, "Server Name Indication (SNI -> Count)", "B", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		for sni, count := range stats.TLSStats.SNI {
-			p.addTableRow(sni, strconv.Itoa(count))
-		}
-	} else {
-		p.addTableRow("Server Name Indication", "No data")
+	// SNI
+	sniItems := make([]string, 0, len(stats.TLSStats.SNI))
+	sniKeys := make([]string, 0, len(stats.TLSStats.SNI))
+	for k := range stats.TLSStats.SNI {
+		sniKeys = append(sniKeys, k)
 	}
+	sort.Strings(sniKeys) // Sort SNI entries
+	for _, k := range sniKeys {
+		sniItems = append(sniItems, fmt.Sprintf("%s: %d", k, stats.TLSStats.SNI[k]))
+	}
+	p.addCompactInfoBlock("Server Name Indication (SNI: Count)", sniItems)
 }
 
 func formatFileSize(sizeInBytes int64) string {

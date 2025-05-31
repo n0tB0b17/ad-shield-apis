@@ -3,6 +3,7 @@ package genreport
 import (
 	"fmt"
 	"image/color"
+	"strings"
 	"time"
 
 	"github.com/bob17/adpis/internal/db"
@@ -123,8 +124,8 @@ func (b *BaseReportGenerator) addFooter() {
 	pdf.Line(10, pdf.GetY(), 200, pdf.GetY())
 	pdf.SetFont("Arial", "", 8)
 	pdf.SetY(pdf.GetY() + 3)
-	pdf.CellFormat(190, 5, fmt.Sprintf("Contact: %s | %s | %s",
-		b.Branding.Addr, b.Branding.AdminContactNumber, b.Branding.AdminEmailAddress), "", 0, "C", false, 0, "")
+	pdf.CellFormat(190, 5, fmt.Sprintf("Email: %s | Address: %s ",
+		b.Branding.AdminEmailAddress, b.Branding.Addr), "", 0, "C", false, 0, "")
 	pdf.SetY(pdf.GetY() + 5)
 	pdf.CellFormat(190, 5, fmt.Sprintf("Page %d", pdf.PageNo()), "", 0, "C", false, 0, "")
 }
@@ -164,4 +165,26 @@ func (b *BaseReportGenerator) addTitle(title string) {
 	pdf.SetTextColor(int(b.Branding.Theme.Text.R), int(b.Branding.Theme.Text.G), int(b.Branding.Theme.Text.B))
 	pdf.Ln(5)
 	pdf.SetFont("Arial", "", 12) // Reset font for general content
+}
+
+func (b *BaseReportGenerator) addCompactInfoBlock(title string, items []string) {
+	pdf := b.Pdf
+
+	if pdf.GetY() > 260 {
+		pdf.AddPage()
+	}
+
+	pdf.Ln(2) // Small space before the block title
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(190, 7, title, "B", 1, "L", false, 0, "") // Sub-heading for the block
+	pdf.SetFont("Arial", "", 10)
+
+	if len(items) == 0 {
+		pdf.MultiCell(190, 6, "No data.", "", "L", false)
+		return
+	}
+
+	content := strings.Join(items, ", ")
+	// Use MultiCell with a border for visual separation and automatic line wrapping
+	pdf.MultiCell(190, 6, content, "1", "L", false)
 }

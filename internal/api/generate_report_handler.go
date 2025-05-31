@@ -285,7 +285,6 @@ func (a *APIServer) getVulnersPortScanResult(scanned_port []db.ServiceResult) ([
 	for i := 0; i < len(scanned_port); i++ {
 		resp := scanned_port[i]
 		vuln_resp, err := vul_scanner.Query(resp.Service, resp.Version)
-		fmt.Println(vuln_resp, "xxxxxxx")
 		if err == nil {
 			resp_holder = append(resp_holder, vuln_resp)
 		}

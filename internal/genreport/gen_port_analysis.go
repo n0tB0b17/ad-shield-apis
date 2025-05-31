@@ -20,8 +20,8 @@ type PortScanReportGenerator struct {
 
 func (p *PortScanReportGenerator) Generate() ([]byte, error) {
 	p.Pdf.AddPage()
+	p.Pdf.Ln(5)
 	p.addUserInfo()
-	p.addTitle("Port scan results")
 
 	p.Pdf.SetFont("Arial", "B", 14)
 	accent := p.Branding.Theme.Accent
@@ -46,11 +46,9 @@ func (p *PortScanReportGenerator) Generate() ([]byte, error) {
 	default:
 		p.Pdf.SetFont("Arial", "", 12)
 		p.Pdf.MultiCell(190, 6, "invalid port scan data provided", "", "L", false)
-		fmt.Println("default type for pdf generate")
 	}
 
 	p.addVulnersScanResults()
-	// p.addFooter()
 
 	var buf bytes.Buffer
 	if err := p.Pdf.Output(&buf); err != nil {
@@ -86,8 +84,6 @@ func (p *PortScanReportGenerator) setVulner(content interface{}) {
 	if vulner, ok := content.([]*vulners.Resp); ok {
 		p.VulnersResp = vulner
 	}
-
-	p.VulnersResp = nil
 }
 
 func (p *PortScanReportGenerator) setExploitdb(content interface{}) {
