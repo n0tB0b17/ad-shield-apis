@@ -22,7 +22,6 @@ const (
 	OUAttrObjectSID         OUAttribute = "objectSid"
 )
 
-// OU represents an Organizational Unit in Active Directory
 type OU struct {
 	Name              string              `json:"name"`
 	DistinguishedName string              `json:"distinguishedName"`

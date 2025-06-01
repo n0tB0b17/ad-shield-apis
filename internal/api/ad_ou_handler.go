@@ -46,11 +46,17 @@ func (a *APIServer) handleCreateNewOU(w http.ResponseWriter, r *http.Request) {
 
 	baseDN := utils.ConvertDomainToDN(req.DomainName)
 	authCfg := auth.NewAuthDefaultConfig(baseDN)
-
 	ouManager := objects.NewOUManager(cm, baseDN)
-	if err := ouManager.CreateOU(nil, authCfg.BindUser, authCfg.BindPwd); err != nil {
+
+	ou := &objects.OU{
+		Name:              req.Name,
+		Description:       req.Description,
+		DistinguishedName: req.DistinguishedName,
+	}
+
+	if err := ouManager.CreateOU(ou, authCfg.BindUser, authCfg.BindPwd); err != nil {
 		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
-			"message":     "internal error",
+			"message":     "internal error while creating ou",
 			"description": err.Error(),
 			"status":      "failed",
 		})

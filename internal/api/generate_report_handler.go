@@ -212,9 +212,9 @@ func (a *APIServer) getPCAPAnalysisResult(storagePath string) map[string]interfa
 	go pcapReader.ReadPackets(packetChan, &wg)
 	for i := 0; i < numOfWorker; i++ {
 		wg.Add(3)
-		networkAnalysis.ProcessPackets(packetChan, &wg)
-		transportAnalysis.ProcessPackets(packetChan, &wg)
-		applicationAnalysis.ProcessPackets(packetChan, &wg)
+		go networkAnalysis.ProcessPackets(packetChan, &wg)
+		go transportAnalysis.ProcessPackets(packetChan, &wg)
+		go applicationAnalysis.ProcessPackets(packetChan, &wg)
 	}
 	wg.Wait()
 

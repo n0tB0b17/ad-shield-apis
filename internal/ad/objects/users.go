@@ -240,10 +240,6 @@ func (um *UserManager) FindUsers(filter, bindUser, bindPassword string, attr []s
 }
 
 func (um *UserManager) CreateUser(user *User, password, bindUser, bindPassword string) error {
-	fmt.Println("Adding user:")
-	fmt.Println(user)
-	fmt.Println(user.DistinguishedName)
-
 	if user.SAMAccountName == "" {
 		return fmt.Errorf("this is required field, please add SAMAccountName")
 	}

@@ -73,7 +73,7 @@ func (v *VulnersBase) HealthCheck() (bool, error) {
 func (v *VulnersBase) Query(service, version string) (*Resp, error) {
 	body := ReqBody{
 		Query: fmt.Sprintf("%s %s", service, version),
-		Key:   v.Key,
+		Key:   "",
 	}
 
 	resp, err := v.makeRequest(body)
