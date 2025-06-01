@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bob17/adpis/internal/ad/auth"
@@ -250,4 +251,72 @@ func (a *APIServer) handleCreateNewUser(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
+
+	var reqBody models.ReqCreateNewUser
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		responseWithJSON(w, http.StatusConflict, map[string]interface{}{
+			"message":     "unable to decode body",
+			"description": err.Error(),
+			"status":      "failed",
+		})
+		return
+	}
+
+	cfg := connection.GetConnConfig(reqBody.Address)
+	cm := connection.GetConnectionManager(cfg)
+	if cm == nil {
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "manager not found",
+			"description": "connection manager not found, health check failed",
+			"status":      "failed",
+		})
+
+		return
+	}
+
+	baseDN := utils.ConvertDomainToDN(reqBody.DomainName)
+	authCfg := auth.NewAuthDefaultConfig(baseDN)
+	userManager := objects.NewUserManager(cm, baseDN)
+
+	user := &objects.User{
+		SAMAccountName:    reqBody.SAMAccountName,
+		UserPrincipalName: reqBody.UserPrincipalName,
+		DisplayName:       reqBody.DisplayName,
+		GivenName:         reqBody.GivenName,
+		SurName:           reqBody.SurName,
+		Description:       reqBody.Description,
+		DistinguishedName: reqBody.DistinguishedName,
+		Title:             reqBody.Title,
+		Department:        reqBody.Department,
+		Company:           reqBody.Company,
+		TelephoneNumber:   reqBody.TelephoneNumber,
+		Mobile:            reqBody.Mobile,
+		Memberof:          []string{},
+		RawAttributes:     make(map[string][]string),
+		WhenCreated:       time.Time{},
+		WhenChanged:       time.Time{},
+	}
+
+	if err := userManager.CreateUser(user, reqBody.Password, authCfg.BindUser, authCfg.BindPwd); err != nil {
+		if strings.Contains(err.Error(), "LDAP Result Code 53") {
+			responseWithJSON(w, http.StatusOK, map[string]interface{}{
+				"message":     "user created",
+				"description": "make sure to enable this user from active directory control panel",
+				"status":      "success",
+			})
+			return
+		}
+		responseWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message":     "internal server error",
+			"description": err.Error(),
+			"status":      "failed",
+		})
+		return
+	}
+
+	responseWithJSON(w, http.StatusCreated, map[string]interface{}{
+		"message":     "user created",
+		"description": "new user has been created to ad domain",
+		"status":      "success",
+	})
 }

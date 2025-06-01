@@ -145,7 +145,7 @@ func (cs *ClientStore) GetClientByID(ctx context.Context, id bson.ObjectID) (*AD
 func (cs *ClientStore) GetAllClients(ctx context.Context, limit, skip int64) ([]ADClient, error) {
 	var adClients []ADClient
 	opts := options.Find()
-	opts.SetLimit(limit)
+	opts.SetLimit(50)
 	opts.SetSkip(skip)
 
 	cursor, err := cs.c.Find(ctx, bson.M{}, opts)

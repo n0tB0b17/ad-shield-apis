@@ -306,9 +306,9 @@ func (um *UserManager) CreateUser(user *User, password, bindUser, bindPassword s
 		return fmt.Errorf("unable to create new user: %v", resp)
 	}
 
-	if err := um.EnableUser(user.DistinguishedName, bindUser, bindPassword); err != nil {
-		return fmt.Errorf("unable to enable user to set password: %v", err)
-	}
+	// if err := um.EnableUser(user.DistinguishedName, bindUser, bindPassword); err != nil {
+	// 	return fmt.Errorf("unable to enable user to set password: %v", err)
+	// }
 
 	if password != "" {
 		if err := um.SetPassword(user.DistinguishedName, password, bindUser, bindPassword); err != nil {

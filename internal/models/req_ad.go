@@ -40,3 +40,21 @@ type ReqCreateNewOU struct {
 	DistinguishedName string `json:"distinguishedName"`
 	Description       string `json:"description"`
 }
+
+type ReqCreateNewUser struct {
+	Address           string `json:"address"`
+	DomainName        string `json:"domain_name"`
+	SAMAccountName    string `json:"samAccountName" validate:"required,min=1,max=20"`
+	Password          string `json:"password"`
+	DistinguishedName string `json:"distinguishedName" validate:"required"`
+	UserPrincipalName string `json:"userPrincipalName" validate:"required,email"`
+	DisplayName       string `json:"displayName" validate:"required,min=1,max=64"`
+	GivenName         string `json:"givenName" validate:"required,min=1,max=64"`
+	SurName           string `json:"surName" validate:"required,min=1,max=64"`
+	Description       string `json:"description,omitempty" validate:"max=256"`
+	Title             string `json:"title,omitempty" validate:"max=64"`
+	Department        string `json:"department,omitempty" validate:"max=64"`
+	Company           string `json:"company,omitempty" validate:"max=64"`
+	TelephoneNumber   string `json:"telephoneNumber,omitempty" validate:"max=32"`
+	Mobile            string `json:"mobile,omitempty" validate:"max=32"`
+}
